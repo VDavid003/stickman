@@ -66,7 +66,7 @@ type
     kills:integer;
     dailykills:integer;
     killscamping:integer; //readwrite
-    killswithoutdeath:integer; // readwrite
+    killsbeforedeath:integer; // readwrite
     weather:byte;
     opt_nochat:boolean;
     state1v1, atrak:boolean;
@@ -479,8 +479,8 @@ begin
     begin
       uid:=0;
       kills:=killek;
-      if killswithoutdeath = 0 then
-        killswithoutdeath:=kills;
+      if killsbeforedeath = 0 then
+        killsbeforedeath:=kills;
       if killscamping = 0 then
         killscamping:=kills;
     end;
@@ -718,7 +718,7 @@ begin
   reconnect:=0;
   kills:=0;
   killscamping:=0;
-  killswithoutdeath:=0;
+  killsbeforedeath:=0;
 end;
 
 destructor TMMOServerClient.Destroy;
