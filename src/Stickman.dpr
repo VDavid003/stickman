@@ -1594,6 +1594,7 @@ begin
       ontouchscript:=stuffjson.GetString(['triggers', name, 'ontouch']);
       onusescript:=stuffjson.GetString(['triggers', name, 'onuse']);
       onleavescript:=stuffjson.GetString(['triggers', name, 'onleave']);
+      vehicle:=stuffjson.GetBool(['triggers', name, 'vehicle']);
       active:=true;
     end;
 
@@ -6432,6 +6433,8 @@ procedure handletriggers;
 var
   i, n:integer;
   atav:single;
+label
+  vege;
 begin
   n:=Length(triggers);
   for i:=0 to n - 1 do
@@ -6439,6 +6442,7 @@ begin
     begin
       if active then
       begin
+        if autoban and not vehicle then goto vege;
         if autoban then
           atav:=tavpointpointsq(pos, tegla.pos)
         else
@@ -6478,6 +6482,7 @@ begin
 
     end;
   usebutton:=false;
+  vege:
 end;
 
 procedure handleteleports;
