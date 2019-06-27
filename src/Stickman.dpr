@@ -259,6 +259,7 @@ var
 {$ENDIF}
 
   mstat:byte;
+  kliensfelh:string;//ezzel leptem be a kliensbe, ez van skins.cfg vegen
   //  myfegyv:byte;
   csipo, rblv, gugg, spc, iranyithato, objir:boolean;
   tulnagylokes:boolean;
@@ -1675,11 +1676,67 @@ begin
   menu.DrawLoadScreen(45);
   ojjektumrenderer:=T3DORenderer.Create(g_pd3ddevice);
 
-
-
   writeln(logfile, 'Loaded objectrenderer');flush(logfile);
+end;
 
-  //saveojjektumini('data\ojjektumok.ini');
+function tiptopdecode(str:string) : string;
+var
+  i,j:integer;
+  c,k:char;
+begin
+  result := '';
+  for j := 3 to length(str)-2 do
+  begin
+    c := str[j];
+    i := Ord(c) - 65;
+    k := Chr(i);
+    result := result + k;
+  end;
+end;
+
+procedure loadskins;
+var
+  sfile:Textfile;
+  tmp:string;
+  i:integer;
+begin
+  fegyvskins[0]:=255;//handleskins miatt
+  if fileexists('data/cfg/skins.cfg') then
+  begin
+    laststate:= 'Loading skins.cfg';
+    assignfile(sfile, 'data/cfg/skins.cfg');
+    reset(sfile);
+    i := 0;
+    while ((not eof(sfile)) and (i < 10)) do
+    begin
+      ReadLn(sfile, tmp);
+      tmp:=tiptopdecode(tmp);
+      if tmp = '-' then
+        fegyvskins[i] := 201
+      else
+        fegyvskins[i] := strtoint(tmp);
+
+      i := i + 1
+    end;
+    readln(sfile,tmp);
+    kliensfelh:=tiptopdecode(tmp);
+    closefile(sfile);
+    deletefile('data/cfg/skins.cfg');
+    writeln(logfile, 'Loaded skins.cfg');flush(logfile);
+  end
+  else
+  begin
+    fegyvskins[0]:=FEGYV_M4A1;
+    fegyvskins[1]:=FEGYV_M82A1;
+    fegyvskins[2]:=FEGYV_LAW;
+    fegyvskins[3]:=FEGYV_MP5A3;
+    fegyvskins[4]:=FEGYV_BM3;
+    fegyvskins[5]:=FEGYV_MPG;
+    fegyvskins[6]:=FEGYV_QUAD;
+    fegyvskins[7]:=FEGYV_NOOB;
+    fegyvskins[8]:=FEGYV_X72;
+    fegyvskins[9]:=FEGYV_HPL;
+  end;
 end;
 
 function loadfegyv:boolean;
@@ -6590,9 +6647,48 @@ end;
 
 {$ENDIF}
 
+procedure handleSkins;
+begin
+      case myfegyv of //ha volt skinem, ilyen lesz
+        FEGYV_MPG: myfegyv_skin := fegyvskins[5];
+        FEGYV_M82A1: myfegyv_skin := fegyvskins[1];
+        FEGYV_M4A1: myfegyv_skin := fegyvskins[0];
+        FEGYV_QUAD: myfegyv_skin := fegyvskins[6];
+        FEGYV_NOOB: myfegyv_skin := fegyvskins[7];
+        FEGYV_LAW: myfegyv_skin := fegyvskins[2];
+        FEGYV_X72: myfegyv_skin := fegyvskins[8];
+        FEGYV_MP5A3: myfegyv_skin := fegyvskins[3];
+        FEGYV_H31_T: myfegyv_skin := FEGYV_H31_T;
+        FEGYV_H31_G: myfegyv_skin := FEGYV_H31_G;
+        FEGYV_HPL: myfegyv_skin := fegyvskins[9];
+        FEGYV_BM3: myfegyv_skin := fegyvskins[4];
+      end;
+
+    if multisc <> nil then // el van dontve myfegyv meg a skinje is
+    begin
+    if (myfegyv_skin < 5) or ((myfegyv_skin > 127) and (myfegyv_skin < 133)) then  //nincs egyedi skinem
+      if multisc.kills >= 50 then // eleget oltem
+        case myfegyv of
+          FEGYV_MPG: myfegyv_skin := FEGYV_G_MPG;
+          FEGYV_M82A1: myfegyv_skin := FEGYV_G_M82A1;
+          FEGYV_M4A1: myfegyv_skin := FEGYV_G_M4A1;
+          FEGYV_QUAD: myfegyv_skin := FEGYV_G_QUAD;
+          FEGYV_NOOB: myfegyv_skin := FEGYV_G_NOOB;
+          FEGYV_LAW: myfegyv_skin := FEGYV_G_LAW;
+          FEGYV_X72: myfegyv_skin := FEGYV_G_X72;
+          FEGYV_MP5A3: myfegyv_skin := FEGYV_G_MP5A3;
+          FEGYV_H31_T: myfegyv_skin := FEGYV_H31_T;
+          FEGYV_H31_G: myfegyv_skin := FEGYV_H31_G;
+          FEGYV_HPL: myfegyv_skin := FEGYV_G_HPL;
+          FEGYV_BM3: myfegyv_skin := FEGYV_G_BM3;
+        end //case
+   end;
+end;
+
+
 procedure handlefizik;
 var
-  i, j, k:integer;
+  i, j, k, l, m, m1:integer;
   ox, oy, oz, amag, tx, tz:single;
   norm, hova, opos, tmp, tmp3, tmp4, tmp5, tmps:TD3DXVector3;
   korlat:integer;
@@ -7802,6 +7898,7 @@ end;
     Postmessage(hwindow, WM_DESTROY, 0, 0);
   end;
 
+  handleskins;
   csinaljfaszapointereket;
 end;
 
@@ -9049,8 +9146,8 @@ begin
       D3DXMatrixMultiply(matWorld, matWorld2, matWorld);
       mat_world:=matworld;
 
-      muks.jkez:=fegyv.jkez(ppl[index].pls.fegyv, state);
-      muks.bkez:=fegyv.bkez(ppl[index].pls.fegyv, state);
+      muks.jkez:=fegyv.jkez(ppl[index].pls.fegyvskin, state);
+      muks.bkez:=fegyv.bkez(ppl[index].pls.fegyvskin, state);
 
       case state and MSTAT_MASK of
         0:muks.stand((state and MSTAT_GUGGOL) > 0);
@@ -9060,7 +9157,7 @@ begin
         4:muks.SideWalk(1 - animstate, (state and MSTAT_GUGGOL) > 0);
         5:muks.Runn(animstate, true);
       end;
-      addrongybaba(apos, vpos, gmbvec, ppl[index].pls.fegyv, mlgmb, random(20000) + 1, -1);
+      addrongybaba(apos, vpos, gmbvec, ppl[index].pls.fegyvskin, mlgmb, random(20000) + 1, -1);
     end;
   setlength(multip2p.hullak, 0);
 end;
@@ -10354,9 +10451,9 @@ begin
   with muks do
   begin
     d3dxmatrixinverse(mfm2, nil, matview);
-    tj:=fegyv.jkez(myfegyv, 0);
+    tj:=fegyv.jkez(myfegyv_skin, 0);
     tj:=D3DXVector3(tj.x + 0.05, tj.y - 1.5, tj.z - 0.1);
-    tb:=fegyv.bkez(myfegyv, 0);
+    tb:=fegyv.bkez(myfegyv_skin, 0);
     tb:=D3DXVector3(tb.x + 0.05, tb.y - 1.5, tb.z - 0.1);
 
     if (myfegyv = FEGYV_BM3) then
@@ -11449,7 +11546,7 @@ begin
         if ppl[i].pls.visible then
           if tavpointpointsq(ppl[i].pos.pos, campos) < sqr(500) then
           begin
-            Rendermuks(i, ppl[i].pos.state, ppl[i].pls.fegyv);
+            Rendermuks(i, ppl[i].pos.state, ppl[i].pls.fegyv); //nem skin mert ez a babu szine
           end;
       end;
       muks.Flush;
@@ -11528,16 +11625,16 @@ begin
             setupfegyvlights(fegylit);
             setupmyfegyvprojmat;
             if not nofegyv then
-              fegyv.drawfegyv(myfegyv, felho.coverage, fegylit);
+              fegyv.drawfegyv(myfegyv_skin, felho.coverage, fegylit);
             setupprojmat;
           end
-          else
+         else
             if not (enableeffects and (opt_postproc > 0)) then
             begin
               setupfegyvlights(fegylit);
               setupmyfegyvprojmat;
               if not nofegyv then
-                fegyv.drawfegyv(myfegyv, felho.coverage, fegylit);
+                fegyv.drawfegyv(myfegyv_skin, felho.coverage, fegylit);
               setupprojmat;
             end;
     end;
@@ -11561,7 +11658,7 @@ begin
           pos:=ppl[i].pos.pos;
           //  if (abs(pos.x-MMO.mypos.pos.x)+abs(pos.z-MMO.mypos.pos.z))<0.5 then continue;
           SetupFegyvmatr(i, 0<(ppl[i].pos.state and MSTAT_CSIPO));
-          fegyv.drawfegyv(ppl[i].pls.fegyv, felho.coverage, 10);
+          fegyv.drawfegyv(ppl[i].pls.fegyvskin, felho.coverage, 10);
         end;
 
     pos:=D3DXVector3(cpx^, cpy^, cpz^);
@@ -11690,7 +11787,7 @@ begin
       setupmyfegyvmatr;
       if not ((myfegyv = FEGYV_QUAD) or ((myfegyv = FEGYV_M82A1) and (not csipo))) then
         //if not (myfegyv=FEGYV_QUAD)  then
-        fegyv.drawfegyeffekt(myfegyv, lovok, mymuzzszog);
+        fegyv.drawfegyeffekt(myfegyv_skin, lovok, mymuzzszog);
       if not (((myfegyv = FEGYV_M82A1) or (myfegyv = FEGYV_HPL)) and (not csipo)) then
         setupprojmat;
 
@@ -11699,7 +11796,7 @@ begin
         begin
           pos:=ppl[i].pos.pos;
           SetupFegyvmatr(i, 0<(ppl[i].pos.state and MSTAT_CSIPO));
-          fegyv.drawfegyeffekt(ppl[i].pls.fegyv, ppl[i].pls.lo, ppl[i].pls.muzzszog);
+          fegyv.drawfegyeffekt(ppl[i].pls.fegyvskin, ppl[i].pls.lo, ppl[i].pls.muzzszog);
         end;
 
     end;
@@ -11957,7 +12054,7 @@ begin
           g_pd3dDevice.SetRenderState(D3DRS_AMBIENT, ambientszin);
           setupmyfegyvmatr;
 
-          fegyv.drawfegyv(myfegyv, felho.coverage, fegylit);
+          fegyv.drawfegyv(myfegyv_skin, felho.coverage, fegylit);
 
         end;
 
@@ -12323,7 +12420,7 @@ begin
     assignfile(fil, 'data/cfg/name.cfg');
     rewrite(fil);
     writeln(fil, menufi[MI_NEV].valueS);
-    writeln(fil, myfegyv);
+    writeln(fil, myfegyv_skin);
     if (lasthash = '-') then
       lasthash:=menufipass.GetPasswordMD5;
     if savepw and (menufipass.valueS <> '') then
@@ -12351,6 +12448,8 @@ begin
     menufi[MI_FEGYV].valueS:=fegyvernev(myfegyv);
     exit;
   end;
+
+  myfegyv_skin := myfegyv;
 
   if menufi[MI_FEGYV].clicked then
   begin
@@ -12418,7 +12517,7 @@ begin
         end;
 
     end;
-
+    myfegyv_skin := myfegyv;
     menufi[MI_FEGYV].valueS:=fegyvernev(myfegyv);
 
   end;
@@ -13267,7 +13366,43 @@ var
         args[i]:=FloatToStr(cpx^);
         args[i + 1]:=FloatToStr(cpy^);
         args[i + 2]:=FloatToStr(cpz^);
-
+      end
+      else
+      if args[i] = '$weapon' then
+      begin
+        case myfegyv of
+          FEGYV_MPG:args[i] := 'FEGYV_MPG';
+          FEGYV_M82A1:args[i] := 'FEGYV_M82A1';
+          FEGYV_M4A1:args[i] := 'FEGYV_M4A1';
+          FEGYV_QUAD:args[i] := 'FEGYV_QUAD';
+          FEGYV_NOOB:args[i] := 'FEGYV_NOOB';
+          FEGYV_LAW:args[i] := 'FEGYV_LAW';
+          FEGYV_X72:args[i] := 'FEGYV_X72';
+          FEGYV_MP5A3:args[i] := 'FEGYV_MP5A3';
+          FEGYV_H31_T:args[i] := 'FEGYV_H31_T';
+          FEGYV_H31_G:args[i] := 'FEGYV_H31_G';
+          FEGYV_HPL:args[i] := 'FEGYV_HPL';
+          FEGYV_BM3:args[i] := 'FEGYV_BM3';
+          FEGYV_BM3_2, FEGYV_BM3_3:;
+        end;
+      end
+      else
+      if args[i] = '$team' then
+      begin
+        case myfegyv of
+          FEGYV_MPG, FEGYV_QUAD, FEGYV_NOOB, FEGYV_X72, FEGYV_H31_T, FEGYV_HPL:args[i] := 'TECH';
+        else
+          args[i] := 'GUN';
+        end;
+      end
+      else
+      if args[i] = '%teamn' then
+      begin
+        case myfegyv of
+          FEGYV_MPG, FEGYV_QUAD, FEGYV_NOOB, FEGYV_X72, FEGYV_H31_T, FEGYV_HPL:args[i] := '0';
+        else
+          args[i] := '1';
+        end;
       end;
     end;
 
@@ -13602,6 +13737,28 @@ var
                           if (args[0] = 'explode') then
                           begin
                             AddLAW(D3DXVector3Zero, computevecs(copy(args, 1, argnum - 1)), -1);
+                            exit;
+                          end
+                          else
+
+                           //fegyvskin load
+                          if (args[0] = 'fegyvskin') then
+                          begin
+                            //evalscriptline('display fegyvskin');
+                            case myfegyv of
+                              FEGYV_MPG: myfegyv_skin := fegyvskins[5];
+                              FEGYV_M82A1: myfegyv_skin := fegyvskins[1];
+                              FEGYV_M4A1: myfegyv_skin := fegyvskins[0];
+                              FEGYV_QUAD: myfegyv_skin := fegyvskins[6];
+                              FEGYV_NOOB: myfegyv_skin := fegyvskins[7];
+                              FEGYV_LAW: myfegyv_skin := fegyvskins[2];
+                              FEGYV_X72: myfegyv_skin := fegyvskins[8];
+                              FEGYV_MP5A3: myfegyv_skin := fegyvskins[3];
+                              FEGYV_H31_T: myfegyv_skin := FEGYV_H31_T;
+                              FEGYV_H31_G: myfegyv_skin := FEGYV_H31_G;
+                              FEGYV_HPL: myfegyv_skin := fegyvskins[9];
+                              FEGYV_BM3: myfegyv_skin := fegyvskins[4];
+                            end;
                             exit;
                           end
                           else
@@ -14336,6 +14493,7 @@ end;   {}
       myfegyv:=random(3) + random(2) * 128; //TODO ezt dinamikusra
     end;
 
+    myfegyv_skin:=myfegyv;
 
   end;
 
@@ -14654,6 +14812,10 @@ begin //                 BEGIIIN
 
     perlin:=Tperlinnoise.create(stuffjson.GetInt(['random_seed']));
 
+ 	laststate:= 'Loading weapon skins';
+	loadskins;
+  	writeln(logfile, 'Weapons skins loaded');
+
     if fileexists('data/cfg/muted.cfg') then
     begin
       laststate:= 'Loading muted.cfg';
@@ -14852,13 +15014,17 @@ begin //                 BEGIIIN
         if multip2p <> nil then
           freeandnil(multisc);
 
+
+        handleskins;
+        laststate := 'init - handleskins';
+
         multisc:=TMMOServerClient.Create(servername, 25252 + random(1024),
           copy(menufi[MI_NEV].valueS, 1, 15),
           lasthash,
-          myfegyv, myfejcucc);
+          myfegyv, myfegyv_skin, myfejcucc);
 
         multisc.weather:=felho.coverage; //ehh, ennyit a csodálatos OOP-rol.
-        multip2p:=TMMOPeerToPeer.Create(multisc.myport, myfegyv);
+        multip2p:=TMMOPeerToPeer.Create(multisc.myport, myfegyv, myfegyv_skin);                         //JAEZAZ
         writeln(logfile, 'Network initialized');
 
 
