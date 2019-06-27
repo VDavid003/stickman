@@ -1,3 +1,5 @@
+(* Based on https://www.gamedev.net/forums/topic/396305-perlin-noise-water/396305/ *)
+
 unit PerlinNoise;
 
 interface

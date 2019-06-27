@@ -1,15 +1,9 @@
 (* Stickman Warfare Source Code              *
  * ----------------------------------------- *
- * All rights reserved                       *
- *                                           *
- * Almost everything in this file and the    *
- * units are written by Badics Alex,         *
- * Háda Ádám and Göller Bertalan.            *
- *                                           *
- * Except: PerlinNoise (i got that from      *
- *                      a forum)             *
- *         D3D units   (www.clootie.ru)      *
- *                                           *)
+ * Licensed under the BSD 2-Clause License.  *
+ * See the LICENSE file in the project root  *
+ * for more information.                     *)
+
 {$R stickman.RES}
 {$DEFINE force16bitindices} //ez hibás, pár helyen, ha nincs kipontozva, meg kell majd nézni
 {$DEFINE undebug}
