@@ -6781,7 +6781,7 @@ begin
     if vizben > 1 then vizben:=1;
     if autoban then
     begin
-      if (cpy^ < 9.5) and (halal = 0) then
+      if (cpy^ < waterlevel+0.5) and (halal = 0) then
       begin
         tuleli:=false;
         for i:=0 to length(bubbles) - 1 do
@@ -6800,7 +6800,7 @@ begin
       end;
     end
     else
-      if ((cpy^ < 9) and gugg) or ((cpy^ < 8.5) and (not gugg)) then
+      if ((cpy^ < waterlevel) and gugg) or ((cpy^ < waterlevel-1.5) and (not gugg)) then
         if halal = 0 then
         begin
           tuleli:=false;
@@ -7155,7 +7155,7 @@ begin
     laststate:= 'Doing Real Physics 2';
     //Egyéb plr cucc
 
-    if (cpy^ < 10) and ((mstat and MSTAT_MASK) > 0) then
+    if (cpy^ < waterlevel) and ((mstat and MSTAT_MASK) > 0) then
       vizben:=vizben + 0.01
     else
       vizben:=vizben - 0.01;
