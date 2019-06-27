@@ -1760,7 +1760,8 @@ begin
   if Failed(g_pd3dDevice.CreateTexture(CMAP_SIZE, CMAP_SIZE, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, mt2, nil)) then Exit; //minimap
 
 
-  fucol:=D3DXColorFromDWord(stuffjson.GetInt(['color_grass']));
+  if not winter then fucol:=D3DXColorFromDWord(stuffjson.GetInt(['color_grass']))
+  else fucol:=D3DXColorFromDWord($FFFFFFFF);
   fucol.a:=1; //0
   kocol:=D3DXColorFromDWord(stuffjson.GetInt(['color_rock']));
   kocol.a:=1; //1
@@ -1768,7 +1769,8 @@ begin
   hocol.a:=1; //0
   nhcol:=D3DXColorFromDWord(stuffjson.GetInt(['color_wet_sand']));
   nhcol.a:=1; //0
-  wacol:=D3DXColorFromDWord(stuffjson.GetInt(['color_water']));
+  if not winter then wacol:=D3DXColorFromDWord(stuffjson.GetInt(['color_water']))
+  else wacol:=D3DXColorFromDWord($FFFFFFFF);
   wacol.a:=1; //1
   //TODO ezekre már van változó
 
@@ -2463,6 +2465,17 @@ begin
   if col_water = 0 then col_water:=$FF0064FA;
   if col_stone = 0 then col_stone:=$FF6E6E6C;
 
+  if winter then
+  begin
+   vizszin:=$FFFFFFFF;
+   water1col:=$FFFFFFFF;
+   water2col:=$FFFFFFFF;
+   dustcol:=$FFFFFFFF;
+   col_dust_grass:=$FFFFFFFF;
+   col_dust_mud:=$FFFFFFFF;
+   col_grass:=$FFFFFFFF;
+   col_water:=$FFFFFFFF;
+  end;
 
   setlength(bubbles, stuffjson.GetNum(['bubbles']));
   for i:=0 to stuffjson.GetNum(['bubbles']) - 1 do
@@ -4116,6 +4129,10 @@ begin
   ds:=sin(szogx);
   dc:=cos(szogx);
   px:=0;py:=0;
+
+  //ICE
+  if (cpy^ <= waterlevel+0.5) and winter then cpy^ := cpy^+0.008;
+
   // TODO
   gugg:=dine.keyd(DIK_LCONTROL) and (halal = 0) and iranyithato;
   if (myfegyv = FEGYV_QUAD) and (not csipo) then iranyithato:=false;
@@ -9086,9 +9103,19 @@ begin
     //                  singtc:=sin((volttim mod round(15000*speed))*D3DX_PI*2/round(15000*speed));
     //                  cosgtc:=cos((volttim mod round(15000*speed))*D3DX_PI*2/round(15000*speed));
     //                      plsgtc:=(volttim mod round(20000*speed))/round(20000*speed);
-    singtc:=sin(vizkor1);
-    cosgtc:=cos(vizkor2);
-    plsgtc:=vizkor3;
+
+    if winter then
+      begin
+        singtc:=0;
+        cosgtc:=1;
+        plsgtc:=0;
+      end
+    else
+      begin
+        singtc:=sin(vizkor1);
+        cosgtc:=cos(vizkor2);
+        plsgtc:=vizkor3;
+      end;
   end;
 
 
@@ -11144,7 +11171,7 @@ begin
     (if lightIntensity > 0 then lightIntensity:=max(0, lightIntensity - 0.04));
 
   //hát, ez elõre kell. pont.
-  if (opt_water > 0) then
+  if (opt_water > 0) and not winter then
     Renderreflectiontex;
 
   //###################
