@@ -39,6 +39,7 @@ type
     procedure SendKill(UID:integer);
     procedure SendMedal(medal:word);
 
+
     procedure ReceiveLoginok(frame:TSocketFrame);
     procedure ReceivePlayerlist(frame:TSocketFrame);
     procedure ReceiveChat(frame:TSocketFrame);
@@ -378,7 +379,6 @@ begin
     crypto[i]:=ujcrypto[i];
 
 end;
-
 
 
 procedure TMMOServerClient.SendKill(UID:integer);
