@@ -268,7 +268,7 @@ var
   cooldown:single;
   kiszall_cooldown:single;
 
-  halal, playrocks, vizben:single;
+  halal, playrocks, vizben, spectate:single;
 
   packszam:integer;
   hvolt:boolean;
@@ -3430,6 +3430,7 @@ begin
   mapmode:=0;
   mapbol:=false;
   halal:=0;
+  spectate:=0;
 
 {$IFDEF fegyverteszt}
 
@@ -4946,6 +4947,7 @@ begin
       begin
 
         halal:=1;
+		spectate:=0;
         // setupmymuksmatr;
         d3dxvec3subtract(tmp, D3DXVector3(cpx^, cpy^ + 1, cpz^), hol);
 
@@ -6745,6 +6747,7 @@ begin
         if (not tuleli) then
         begin
           halal:=1;
+		      spectate:=0;
           autoban:=false;
           addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(0.00, -0.1, 0), myfegyv, 10, 0, -1);
         end;
@@ -6763,6 +6766,7 @@ begin
             end;
           if (not tuleli) then begin
             halal:=1;
+            spectate:=0;
             //couldn't swim
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(0.00, 0.0, 0), myfegyv, 10, 0, -1);
           end;
@@ -7251,6 +7255,7 @@ begin
       if tavpointpointsq(tegla.pos, tegla.vpos) > sqr(0.1) then
       begin
         halal:=1;
+		spectate:=0;
         setupmymuksmatr;
         addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3((cpox^ + cpx^) / 2, cpy^ - 0.5, (cpoz^ + cpz^) / 2), d3dxvector3(-sin(szogx) * 0.3, -0.1, -cos(szogx) * 0.3), myfegyv, 0, 0, -1);
       end;
@@ -9124,6 +9129,7 @@ begin
         begin
 
           halal:=1;
+		  spectate:=0;
           // setupmymuksmatr;
           d3dxvec3subtract(tmp, aloves.v2, aloves.pos);
           if (aloves.fegyv = FEGYV_M82A1) or (aloves.fegyv = FEGYV_QUAD) or (myfegyv = FEGYV_HPL) then
@@ -11107,12 +11113,12 @@ begin
   end
   else
   begin
-    if halal > 6 then respawn;
+    if halal > 6 then if spectate = 0 then respawn;
   end;
 
 {$IFDEF fegyverteszt}
   if halal > 0 then
-    respawn;
+    if spectate = 0 then respawn;
 {$ENDIF}
   laststate:= 'Handlelovesek';
   Handlelovesek;
@@ -11950,7 +11956,7 @@ begin
 
       if (menu.lap = -1) then //MENÜBÕL nem kéne...
         if (G_peffect <> nil) and (opt_greyscale) then
-          if halal <> 0 then
+          if (halal <> 0) and (spectate = 0) then
           begin
             g_peffect.SetTechnique('FullScreenGreyscale');
 
@@ -12937,6 +12943,7 @@ begin
   if menu.lap < 0 then exit;
   csipo:=true;
   halal:=0;
+  spectate:=0;
   mapmode:=0;
   mapbol:=false;
 
@@ -14002,7 +14009,9 @@ end;   {}
 
   procedure handlewmchar(mit:wparam);
   var
-    i:integer;
+    args:array of string;
+    tmp:string;
+    len, i, j, argnum:integer;
   {$IFDEF repkedomod}
     tempd3dbuf:ID3DXBuffer;
     n:integer;
@@ -14174,13 +14183,33 @@ end;   {}
         if (' /kill' = chatmost) and (halal = 0) then
         begin
           halal:=1;
+		      spectate:=0;
           setupmymuksmatr;
           addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
         end
         else
+
+        //TODO Fix Spectate
+		  (*if (' /spectate' = chatmost) and (halal = 0) and (spectate = 0) and (not autoban) then
+			begin
+			  halal:=1;
+			  spectate:=1;
+        setupmymuksmatr;
+			end
+		  else
+		  if (' /unspectate' = chatmost) and (spectate = 1) then
+			begin
+			  halal:=1;
+			  spectate:=0;
+			  setupmymuksmatr;
+        addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
+        respawn;
+			end
+		  else *)
           if (' /realm' = Copy(chatmost, 1, 7)) and (halal = 0) then
           begin
             halal:=1;
+			      spectate:=0;
             setupmymuksmatr;
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
             Multisc.Chat(chatmost);
@@ -14191,6 +14220,7 @@ end;   {}
             if (' /norealm' = Copy(chatmost, 1, 9)) and (halal = 0) then
             begin
               halal:=1;
+			        spectate:=0;
               setupmymuksmatr;
               addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
               Multisc.Chat(chatmost);
