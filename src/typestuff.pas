@@ -15,9 +15,8 @@ uses
   qjson;
 
 const
-  PROG_VER=209071;
-  datachecksum=$CA28F13F;
-
+  PROG_VER=209072;
+  datachecksum=$F48CF882;
 type
 
   array4ofbyte=array[0..3] of byte;
@@ -26,7 +25,7 @@ type
   public
     value:string;
     fade:word;
-    color:longword;
+    color:integer;
     constructor create(input:string;col:longword;f:word);
   end;
 
@@ -302,6 +301,12 @@ type
     vehicle:boolean;
     active:boolean;
     restart:cardinal;
+    self:boolean;
+    others:boolean;
+    clanonly:boolean;
+    clan:string;
+    kill:integer;
+    killoperator:string; //GT LT EQ GTE LTE
   end;
 
   TScript=record
@@ -343,9 +348,10 @@ type
   TParticleSys=record
     from,spd:TD3DXVector3;
     tipus:integer;
-    scolor,ecolor,rcolor:cardinal;
+    scolor,ecolor,rcolor:integer;
     szorzo,rnd,spdrnd:single;
-    amount,period,lifetime,rndlt:integer;
+    amount,lifetime,rndlt:integer;
+    period:cardinal;
     ssize,esize,vis:single;
     texture:integer;
     disabled:bool;
@@ -518,7 +524,7 @@ type
 
   TGridElem=packed record
     meret,top:integer;
-    elemek:Pointer;//1D Array, Dwordok természetesen Castolható pointerre de úhgyis index lesz
+    elemek:Pointer;//1D Array, Dwordok természetesen Castolható pointerre de úgyis index lesz
   end;
 
   TGrid=record
@@ -559,7 +565,7 @@ var
   hudMessageOffsetY:single=0.05;
   hudInfo:string;
   hudInfoFade:word;
-  hudInfoColor:longword;
+  hudInfoColor:integer;
   winter:boolean=false;
   unfocused:boolean;
   multisampling:integer=0;
@@ -597,7 +603,8 @@ var
   gpukey:integer=0;
   goodchars:shortstring='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';//62
 
-  betuszin,color_menu_normal,color_menu_select,color_menu_info:longword;
+  betuszin:cardinal;
+  color_menu_normal,color_menu_select,color_menu_info:longword;
 
   mymuzzszog:single;
 
@@ -1792,13 +1799,13 @@ var
   probal:byte;
   eredm:HRESULT;
   info:TD3DXImageInfo;
-  w,h:integer;
-  divisor:integer;
+  w,h:cardinal;
+  divisor:cardinal;
 label
   vissz;
 begin
 
-  divisor:=-1;
+  divisor:=0;
 
   D3DXGetImageInfoFromFile(PChar(nev),info);
   w:=info.Width;
@@ -1821,7 +1828,7 @@ begin
           begin
             w:=1;
             h:=1;
-            divisor:=-1;
+            divisor:=0;
           end;
         end;
         
@@ -4638,7 +4645,7 @@ end;
 //
 //end;
 
-procedure log(s:string);
+procedure log(s:string);  //TODO USE
 begin
   writeln(logfile,s);
   flush(logfile);

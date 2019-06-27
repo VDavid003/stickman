@@ -1,6 +1,5 @@
 unit multiplayer;
 
-
 {.$DEFINE fakenetchecksum}
 {.$DEFINE fakepos}
 
@@ -31,7 +30,7 @@ type
     crypto:array[0..19] of byte; //kill csodacryptocucc
     sentmedals:array of word;
     laststatus:cardinal; //idõ amikor utoljára lett státuszüzenet küldve
-    procedure SendLogin(nev, jelszo:string;fegyver, fegyver_skin, fejrevalo, port, checksum:integer);
+    procedure SendLogin(nev, jelszo:string; fegyver, fegyver_skin, fejrevalo, port, checksum:integer);
     procedure SendChat(uzenet:string);
     procedure SendStatus(x, y:integer);
 
@@ -67,7 +66,7 @@ type
     kills:integer;
     dailykills:integer;
     killscamping:integer; //readwrite
-    killswithoutdeath:integer; // readwrite
+    killsbeforedeath:integer; // readwrite
     weather:byte;
     opt_nochat:boolean;
     state1v1, atrak:boolean;
@@ -480,8 +479,8 @@ begin
     begin
       uid:=0;
       kills:=killek;
-      if killswithoutdeath = 0 then
-        killswithoutdeath:=kills;
+      if killsbeforedeath = 0 then
+        killsbeforedeath:=kills;
       if killscamping = 0 then
         killscamping:=kills;
     end;
@@ -646,7 +645,7 @@ var
   isCoord:boolean;
   b, c:byte;
   i:integer;
-  FS:TFormatSettings;
+  //FS:TFormatSettings;
 begin
   fakedeath:=6;
   //koordináta?
@@ -719,7 +718,7 @@ begin
   reconnect:=0;
   kills:=0;
   killscamping:=0;
-  killswithoutdeath:=0;
+  killsbeforedeath:=0;
 end;
 
 destructor TMMOServerClient.Destroy;
@@ -977,7 +976,7 @@ var
   i:integer;
   volthgh:integer;
   mat2:TD3DMatrix;
-  tmp:TD3DXVector3;
+  //tmp:TD3DXVector3;
 begin
   gtc:=gettickcount;
   with ppl[kitol] do
@@ -1124,7 +1123,7 @@ end;
 
 procedure TMMOPeerToPeer.ReceiveStatus(kitol:integer;frame:TUDPFrame);
 var
-  i:integer;
+  //i:integer;
   k:byte;
 begin
   k:=frame.ReadChar;

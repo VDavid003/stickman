@@ -50,6 +50,8 @@ uses
   ParticleSystem,
   PerlinNoise,
   qjson,
+  IdHTTP,
+  IdMultipartFormData,
   sky,
   StrUtils,
   SysUtils,
@@ -1595,6 +1597,12 @@ begin
       onusescript:=stuffjson.GetString(['triggers', name, 'onuse']);
       onleavescript:=stuffjson.GetString(['triggers', name, 'onleave']);
       vehicle:=stuffjson.GetBool(['triggers', name, 'vehicle']);
+	    self:=stuffjson.GetBool(['triggers', name, 'self']);
+      others:=stuffjson.GetBool(['triggers', name, 'others']);
+      clanonly:=stuffjson.GetBool(['triggers', name, 'clanonly']);
+      clan:=stuffjson.GetString(['triggers', name, 'clan']);
+      kill:=stuffjson.GetInt(['triggers', name, 'kill']);
+      killoperator:=stuffjson.GetString(['triggers', name, 'killoperator']);
       active:=true;
     end;
 
@@ -3463,7 +3471,7 @@ begin
 
   lastzone:= '';
   multisc.killscamping:=multisc.kills;
-  multisc.killswithoutdeath:=multisc.kills;
+  multisc.killsbeforedeath:=multisc.kills;
 
   zonechanged:=0;
   invulntim:=300;
@@ -3474,6 +3482,7 @@ begin
   mapbol:=false;
   halal:=0;
   spectate:=0;
+  ojjind:=0;
 
 {$IFDEF fegyverteszt}
 
@@ -6478,8 +6487,9 @@ end;
 
 procedure handletriggers;
 var
-  i, n:integer;
+  i, j, n:integer;
   atav:single;
+  predic:boolean;
 label
   vege;
 begin
@@ -6489,37 +6499,101 @@ begin
     begin
       if active then
       begin
-        if autoban and not vehicle then goto vege;
-        if autoban then
-          atav:=tavpointpointsq(pos, tegla.pos)
-        else
-          atav:=tavpointpointsq(pos, d3dxvector3(cpx^, cpy^, cpz^));
+		if self then
+		begin
+          if killoperator = 'GT' then //faszer nem ordinal
+            predic := (multisc.kills - multisc.killsbeforedeath > kill)
+          else if killoperator = 'LT'  then
+            predic := (multisc.kills - multisc.killsbeforedeath < kill)
+          else if killoperator = 'GTE' then
+            predic := (multisc.kills - multisc.killsbeforedeath >= kill)
+          else if killoperator = 'LTE' then
+            predic := (multisc.kills - multisc.killsbeforedeath <= kill)
+          else //ez az EQ vagy default
+            predic := (multisc.kills - multisc.killsbeforedeath = kill);
+		  if ( (kill = 0) OR ((kill > 0) AND predic) ) then
+		  begin
+        	if autoban and not vehicle then goto vege;
+        	if autoban then
+          	  atav:=tavpointpointsq(pos, tegla.pos)
+        	else
+              atav:=tavpointpointsq(pos, d3dxvector3(cpx^, cpy^, cpz^));
 
-        if atav < sqr(rad) then
+            if atav < sqr(rad) then
+            begin
+             if (not touched) then
+             begin
+               evalscriptline('$thistrigger = ' + name);
+               evalScript(ontouchscript);
+               touched:=true;
+             end;
+
+             if (usebutton) then
+             begin
+               evalscriptline('$thistrigger = ' + name);
+               evalScript(onusescript);
+             end;
+
+            end
+            else
+            begin
+             if touched then
+             begin
+               evalscriptline('$thistrigger = ' + name);
+               evalscript(onleavescript);
+             end;
+             touched:=false;
+            end
+          end // kill
+        end;    //self
+
+        if others then
         begin
-          if (not touched) then
+          for j:=0 to high(ppl) do
           begin
-            evalscriptline('$thistrigger = ' + name);
-            evalScript(ontouchscript);
-            touched:=true;
-          end;
+           if clanonly = FALSE or (clanonly and (ppl[j].pls.clan = clan)) then
+           begin
+           if killoperator = 'GT' then //faszer nem ordinal
+             predic := (ppl[j].pls.kills > kill)
+           else if killoperator = 'LT'  then
+             predic := (ppl[j].pls.kills < kill)
+           else if killoperator = 'GTE' then
+             predic := (ppl[j].pls.kills >= kill)
+           else if killoperator = 'LTE' then
+             predic := (ppl[j].pls.kills <= kill)
+           else //ez az EQ vagy default
+             predic := (ppl[j].pls.kills = kill);
 
-          if (usebutton) then
-          begin
-            evalscriptline('$thistrigger = ' + name);
-            evalScript(onusescript);
-          end;
+           if ( (kill = 0) OR ((kill > 0) AND predic) ) then
+           begin
 
-        end
-        else
-        begin
-          if touched then
-          begin
-            evalscriptline('$thistrigger = ' + name);
-            evalscript(onleavescript);
-          end;
-          touched:=false;
-        end
+               if autoban then
+                 atav:=tavpointpointsq(pos, ppl[j].auto.pos)
+               else
+                atav:=tavpointpointsq(pos, ppl[j].pos.pos);
+
+              if atav < sqr(rad) then
+              begin
+               if (not touched) then
+               begin
+                evalscriptline('$thistrigger = ' + name);
+                evalScript(ontouchscript);
+                touched:=true;
+               end;
+              end
+              else
+              begin
+               if touched then
+               begin
+                evalscriptline('$thistrigger = ' + name);
+                evalscript(onleavescript);
+               end;
+               touched:=false;
+               end
+             end //kill
+           end //clan
+          end //for
+        end;
       end
       else
       begin
@@ -6780,7 +6854,7 @@ begin
     if vizben > 1 then vizben:=1;
     if autoban then
     begin
-      if (cpy^ < 9.5) and (halal = 0) then
+      if (cpy^ < waterlevel+0.5) and (halal = 0) then
       begin
         tuleli:=false;
         for i:=0 to length(bubbles) - 1 do
@@ -6799,7 +6873,7 @@ begin
       end;
     end
     else
-      if ((cpy^ < 9) and gugg) or ((cpy^ < 8.5) and (not gugg)) then
+      if ((cpy^ < waterlevel) and gugg) or ((cpy^ < waterlevel-1.5) and (not gugg)) then
         if halal = 0 then
         begin
           tuleli:=false;
@@ -7154,7 +7228,7 @@ begin
     laststate:= 'Doing Real Physics 2';
     //Egyéb plr cucc
 
-    if (cpy^ < 10) and ((mstat and MSTAT_MASK) > 0) then
+    if (cpy^ < waterlevel) and ((mstat and MSTAT_MASK) > 0) then
       vizben:=vizben + 0.01
     else
       vizben:=vizben - 0.01;
@@ -7815,7 +7889,7 @@ end;
       if myfegyv > 127 then
       begin
 
-        case multisc.kills - multisc.killswithoutdeath of
+        case multisc.kills - multisc.killsbeforedeath of
           2:i:=12 + 0;
           5:i:=12 + 1;
           8:i:=12 + 2;
@@ -7832,7 +7906,7 @@ end;
       end
       else
       begin
-        case multisc.kills - multisc.killswithoutdeath of
+        case multisc.kills - multisc.killsbeforedeath of
           2:i:=31 + 0;
           5:i:=31 + 1;
           8:i:=31 + 2;
@@ -8161,7 +8235,7 @@ begin
     felho.makenew;
   end;
 
-  case multisc.kills - multisc.killswithoutdeath of
+  case multisc.kills - multisc.killsbeforedeath of
     3:multisc.Medal('W', '1');
     6:multisc.Medal('W', '2');
     9:multisc.Medal('W', '3');
@@ -9889,14 +9963,14 @@ begin
     menu.DrawSzinesChat(txt, 0.9, 0.33, 1, 0.35, $FF000000 + betuszin);
 
 
-    if multisc.kills - multisc.killswithoutdeath > 1 then
-      txt:=inttostr(multisc.kills - multisc.killswithoutdeath) + lang[44]
+    if multisc.kills - multisc.killsbeforedeath > 1 then
+      txt:=inttostr(multisc.kills - multisc.killsbeforedeath) + lang[44]
     else
       txt:= '';
     menu.DrawSzinesChat(txt, 0.86, 0.35, 1, 39, $FF000000 + betuszin);
 
 
-    case multisc.kills - multisc.killswithoutdeath of
+    case multisc.kills - multisc.killsbeforedeath of
       0, 1, 2:txt:= '';
       3, 4, 5:txt:= 'Killing Spree!';
       6, 7, 8:txt:= 'Rampage!';
@@ -9973,7 +10047,7 @@ begin
     begin
       if vanishcar > 0 then
       begin
-        drawmessage(inttostr(15 - vanishcar div 100) + lang[50], (128 - (vanishcar * 17) div 300) * $1000000 + betuszin);
+        drawmessage(inttostr(15 - vanishcar div 100) + lang[50], (128 - (vanishcar * 17) div 300) * $1000000 + integer(betuszin));
       end;
     end;
 
@@ -9985,8 +10059,8 @@ begin
       else
         txt:=inttostr(zonaellen) + lang[41];
       end;
-      drawmessage(lang[51] + lastzone + ',', min(zonechanged, 255) shl 24 + betuszin);
-      drawmessage(txt, min(zonechanged, 255) shl 24 + betuszin);
+      drawmessage(lang[51] + lastzone + ',', min(zonechanged, 255) shl 24 + Integer(betuszin));
+      drawmessage(txt, min(zonechanged, 255) shl 24 + Integer(betuszin));
     end;
 
     if autobaszallhat and (halal = 0) then
@@ -10001,7 +10075,7 @@ begin
       begin
         if latszonazF > 2 then dec(latszonazF, 2);
         if opt_tips then
-          drawmessage(lang[53], min(255, latszonazF) * $1000000 + betuszin)
+          drawmessage(lang[53], min(255, latszonazF) * $1000000 + Integer(betuszin))
 
       end
       else
@@ -13176,6 +13250,7 @@ var
 
     //számoljunk, most hogy nincsenek változók
     numnum:=0;
+    varnum:=0;
     operator:= ' ';
       for i:=0 to n - 1 do
       begin
@@ -13433,6 +13508,9 @@ var
     a:TStringArray;
     b:Cardinal;
     testmuks:Tplayer;
+	HTTPClient: TIdHTTP;
+    postData: TIdMultipartFormDataStream;
+    response:string;
   begin
 
     //bontsuk szavakra, és tegyük egy args arraybe
@@ -13694,7 +13772,7 @@ var
               if (args[0] = 'lightbeam') then
               begin
                 j:=stuffjson.GetNum(['lightbeams']);
-                i:=0;
+                //i:=0;
                 for i:=0 to j - 1 do
                 begin
                   if stuffjson.GetString(['lightbeams', i, 'name']) = args[1] then
@@ -13904,6 +13982,37 @@ var
                             exit;
                           end
                           else
+
+						              if (args[0] = 'respawn') then
+                          begin
+                            respawn;
+                            exit;
+                          end
+                          else
+
+                          //submit api communication
+                          if (args[0] = 'submit') then
+                          begin
+                            if (args[1] = 'atlantisevent') then
+                            begin
+                                 HTTPClient := TidHTTP.Create(nil);
+                                 try
+                                  postData := TIdMultiPartFormDataStream.Create;
+                                  try
+                                    postData.AddFormField('form[nev]', multisc.nev);
+                                    postData.AddFormField('form[kills]', intToStr(multisc.kills - multisc.killsbeforedeath));
+                                    response := HTTPClient.Post('http://stickman.hu/api?mode=atlantisevent', postData);
+                                  finally
+                                    postData.Free;
+                                  end;
+                                 finally
+                                  HTTPClient.Free;
+                                 end;
+                            end;
+                            exit;
+                          end
+                          else
+
                             //hang
                             if (args[0] = 'sound') and (Length(args) > 4) then
                             begin
@@ -14104,7 +14213,8 @@ end;   {}
   var
     args:array of string;
     tmp:string;
-    len, i, j, argnum:integer;
+    len, i, j:integer;
+    //argnum:integer;
   {$IFDEF repkedomod}
     tempd3dbuf:ID3DXBuffer;
     n:integer;
@@ -14327,7 +14437,7 @@ end;   {}
                   if (ppl[i].net.UID = 0) then ppl[i].pls.kills := 0;
                 multisc.kills:=0;
                 multisc.killscamping:=multisc.kills;
-                multisc.killswithoutdeath:=multisc.kills;
+                multisc.killsbeforedeath:=multisc.kills;
                 setupmymuksmatr;
               end
               else
