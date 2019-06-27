@@ -7,15 +7,12 @@
 {$R stickman.RES}
 {$DEFINE force16bitindices} //ez hibás, pár helyen, ha nincs kipontozva, meg kell majd nézni
 {$DEFINE undebug}
-{.$DEFINE panthihogomb}
 {.$DEFINE nochecksumcheck}
 {.$DEFINE speedhack}
 {.$DEFINE repkedomod}
-{.$DEFINE winter}
 {.$DEFINE godmode}
 {.$DEFINE admingun}
 {-$DEFINE palyszerk}
-{.$DEFINE ajandekok}
 {.$DEFINE alttabengedes}
 {.$DEFINE matieditor}
 {.$DEFINE profiler}
@@ -55,7 +52,7 @@ uses
   qjson,
   sky,
   StrUtils,
-  Sysutils,
+  SysUtils,
   //SyncObjs,
   //ShellApi,
   Typestuff,
@@ -100,9 +97,7 @@ const
 
   //CMAP_SIZE=1024; //lefelé betöltésnél kéne scalelni
   CMAP_SIZE = 1024;
-  CMAP1_PATH = 'data\cmap.png'; //régi terep
-  CMAP2_PATH = 'data\cmap2.png'; //térkép
-  CMAP3_PATH = 'data\cmap3.png'; //shader terep
+  CMAP_PATH = 'data/textures/map/';
 
 
 
@@ -112,9 +107,12 @@ const
 var
   // REMOVE
 
+
+  CMAP1_PATH:string = CMAP_PATH+'default/cmap.png'; //régi terep
+  CMAP2_PATH:string = CMAP_PATH+'default/cmap2.png'; //térkép
+  CMAP3_PATH:string = CMAP_PATH+'default/cmap3.png'; //shader terep
+  modifierjson:TQJSON;
 {$IFDEF matieditor}
-
-
   debugstr:string = ' ';
   debugstr2:string = ' ';
   me_id:integer;
@@ -122,16 +120,10 @@ var
   me_tid:integer;
   me_spec:single;
   me_hard:single;
-
-
-
 {$ENDIF}
 
-
 {$IFDEF terraineditor}
-
   closepr, closeojj, closeojjhv:integer;
-
 {$ENDIF}
 
   g_pD3D:IDirect3D9 = nil; // Used to create the D3DDevice
@@ -167,9 +159,9 @@ var
   skytex:IDirect3DTexture9 = nil;
   skystrips:array[0..20] of array[0..31] of TSkyVertex;
 
-{$IFDEF panthihogomb}
+
   hogombmesh:ID3DXMesh = nil;
-{$ENDIF}
+
   foliages:array of Tfoliage; //Növényzet
   //  foliagelevels:array of integer;
   ojjektumrenderer:T3DORenderer;
@@ -268,14 +260,15 @@ var
 {$ENDIF}
 
   mstat:byte;
+  kliensfelh:string;//ezzel leptem be a kliensbe, ez van skins.cfg vegen
   //  myfegyv:byte;
-  csipo, rblv, gugg, spc, iranyithato, objir:boolean;
+  csipo, rblv, gugg, inspect, spc, iranyithato, objir:boolean;
   tulnagylokes:boolean;
   lovok:single;
   cooldown:single;
   kiszall_cooldown:single;
 
-  halal, playrocks, vizben:single;
+  halal, playrocks, vizben, spectate:single;
 
   packszam:integer;
   hvolt:boolean;
@@ -436,7 +429,6 @@ procedure evalscriptline(line:string);forward;
 procedure evalScript(name:string);forward;
 procedure writeChat(s:string);forward;
 procedure fillupmenu;forward;
-
 
 function collerp(c1, c2:cardinal):cardinal;
 var
@@ -683,9 +675,6 @@ begin
   result:=true;
 end;
 
-
-
-
 function meglove(gmbk:Tgmbk;kapcsk:Tkapcsk;lin, ir:Td3DVector;fegyvvst:single):integer;
 var
   i, j:integer;
@@ -899,9 +888,7 @@ begin
   szin:=fuszin;
   if (norm.y < 0.83) and (yy > 17) then szin:=koszin;
 
-{$IFNDEF winter}
-  if yy < 15 then szin:=hoszin + $FF000000;
-{$ENDIF}
+  if (yy < 15) and not winter then szin:=hoszin + $FF000000;
 
   if yy < 10.5 then szin:=nhszin + $FF000000;
 
@@ -911,10 +898,10 @@ begin
   if yy < 5 then szin:=vizszin + $FF000000;
 
 
-{$IF Defined(panthihogomb) and not Defined(winter)}
-  if tavpointpointsq(DNSVec, D3DXVector3(xx, yy, zz)) < DNSrad * DNSRad then
-    szin:=$FFFFFEFF;
-{$IFEND}
+//{$IF Defined(panthihogomb) and not Defined(winter)}
+  //if (tavpointpointsq(DNSVec, D3DXVector3(xx, yy, zz)) < DNSrad * DNSRad) then
+    //szin:=$FFFFFEFF;
+//{$IFEND}
 
   for i:=0 to length(grounds) - 1 do //TODO CMAP
     with grounds[i] do
@@ -1445,7 +1432,6 @@ var
   tmp, shape:String;
   height, width, offset:single;
 begin
-
   n:=stuffjson.GetNum(['foliages']);
   setlength(foliages, n);
   for i:=0 to n - 1 do
@@ -1455,8 +1441,9 @@ begin
     offset:=stuffjson.GetFloat(['foliages', i, 'offset']);
     shape:=stuffjson.GetString(['foliages', i, 'shape']);
     tmp:=stuffjson.GetString(['foliages', i, 'texture']);
+    if winter then tmp:='fake.png';//NO FOLIAGE
     //   fillmemory(@(foliages[i]),sizeof(foliages[i]),0);
-    foliages[i]:=TFoliage.create(G_pd3ddevice, 'textures/' + tmp, width, height, offset, shape);
+    foliages[i]:=TFoliage.create(G_pd3ddevice, tmp, width, height, offset, shape);
     foliages[i].level:=stuffjson.GetInt(['foliages', i, 'level']);
 
   end;
@@ -1607,6 +1594,7 @@ begin
       ontouchscript:=stuffjson.GetString(['triggers', name, 'ontouch']);
       onusescript:=stuffjson.GetString(['triggers', name, 'onuse']);
       onleavescript:=stuffjson.GetString(['triggers', name, 'onleave']);
+      vehicle:=stuffjson.GetBool(['triggers', name, 'vehicle']);
       active:=true;
     end;
 
@@ -1630,7 +1618,7 @@ begin
     laststate:=lang[84] + '''' + ojjektumnevek[i] + '''';
     menu.DrawLoadScreen((40 * i) div length(ojjektumnevek));
     ojjektumarr[i]:=nil;
-    ojjektumarr[i]:=T3dojjektum.Create('data/objects/' + ojjektumnevek[i], g_pd3ddevice, ojjektumscalek[i].x, ojjektumscalek[i].y, ojjektumhv[i], ojjektumflags[i]);
+    ojjektumarr[i]:=T3dojjektum.Create('data/models/buildings/' + ojjektumnevek[i], g_pd3ddevice, ojjektumscalek[i].x, ojjektumscalek[i].y, ojjektumhv[i], ojjektumflags[i]);
     if (ojjektumarr[i] = nil) then
     begin
       writeln(logfile, 'Brutal error loading object ''' + ojjektumnevek[i] + '''');
@@ -1690,11 +1678,67 @@ begin
   menu.DrawLoadScreen(45);
   ojjektumrenderer:=T3DORenderer.Create(g_pd3ddevice);
 
-
-
   writeln(logfile, 'Loaded objectrenderer');flush(logfile);
+end;
 
-  //saveojjektumini('data\ojjektumok.ini');
+function tiptopdecode(str:string) : string;
+var
+  i,j:integer;
+  c,k:char;
+begin
+  result := '';
+  for j := 3 to length(str)-2 do
+  begin
+    c := str[j];
+    i := Ord(c) - 65;
+    k := Chr(i);
+    result := result + k;
+  end;
+end;
+
+procedure loadskins;
+var
+  sfile:Textfile;
+  tmp:string;
+  i:integer;
+begin
+  fegyvskins[0]:=255;//handleskins miatt
+  if fileexists('data/cfg/skins.cfg') then
+  begin
+    laststate:= 'Loading skins.cfg';
+    assignfile(sfile, 'data/cfg/skins.cfg');
+    reset(sfile);
+    i := 0;
+    while ((not eof(sfile)) and (i < 10)) do
+    begin
+      ReadLn(sfile, tmp);
+      tmp:=tiptopdecode(tmp);
+      if tmp = '-' then
+        fegyvskins[i] := 201
+      else
+        fegyvskins[i] := strtoint(tmp);
+
+      i := i + 1
+    end;
+    readln(sfile,tmp);
+    kliensfelh:=tiptopdecode(tmp);
+    closefile(sfile);
+    deletefile('data/cfg/skins.cfg');
+    writeln(logfile, 'Loaded skins.cfg');flush(logfile);
+  end
+  else
+  begin
+    fegyvskins[0]:=FEGYV_M4A1;
+    fegyvskins[1]:=FEGYV_M82A1;
+    fegyvskins[2]:=FEGYV_LAW;
+    fegyvskins[3]:=FEGYV_MP5A3;
+    fegyvskins[4]:=FEGYV_BM3;
+    fegyvskins[5]:=FEGYV_MPG;
+    fegyvskins[6]:=FEGYV_QUAD;
+    fegyvskins[7]:=FEGYV_NOOB;
+    fegyvskins[8]:=FEGYV_X72;
+    fegyvskins[9]:=FEGYV_HPL;
+  end;
 end;
 
 function loadfegyv:boolean;
@@ -1775,7 +1819,8 @@ begin
   if Failed(g_pd3dDevice.CreateTexture(CMAP_SIZE, CMAP_SIZE, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, mt2, nil)) then Exit; //minimap
 
 
-  fucol:=D3DXColorFromDWord(stuffjson.GetInt(['color_grass']));
+  if not winter then fucol:=D3DXColorFromDWord(stuffjson.GetInt(['color_grass']))
+  else fucol:=D3DXColorFromDWord($FFFFFFFF);
   fucol.a:=1; //0
   kocol:=D3DXColorFromDWord(stuffjson.GetInt(['color_rock']));
   kocol.a:=1; //1
@@ -1783,12 +1828,10 @@ begin
   hocol.a:=1; //0
   nhcol:=D3DXColorFromDWord(stuffjson.GetInt(['color_wet_sand']));
   nhcol.a:=1; //0
-  wacol:=D3DXColorFromDWord(stuffjson.GetInt(['color_water']));
+  if not winter then wacol:=D3DXColorFromDWord(stuffjson.GetInt(['color_water']))
+  else wacol:=D3DXColorFromDWord($FFFFFFFF);
   wacol.a:=1; //1
   //TODO ezekre már van változó
-
-
-
 
   l1c:=D3DXColorFromDWORD(stuffjson.GetInt(['light', 'color_sun']));
   l2c:=D3DXColorFromDWORD(stuffjson.GetInt(['light', 'color_shadow']));
@@ -1797,7 +1840,7 @@ begin
 
   if (useoldterrain or (g_pEffect <> nil)) and fileexists(CMAP1_PATH) then
   begin
-    LTFF(g_pd3dDevice, CMAP1_PATH, mt1, TEXFLAG_FIXRES);
+    LTFF(g_pd3dDevice, CMAP1_PATH, mt1, TEXFLAG_FIXRES, nil, false);
   end
   else if (not fileexists(CMAP2_PATH)) or (not fileexists(CMAP1_PATH)) then
   begin
@@ -1875,12 +1918,10 @@ begin
 
   if fileexists(CMAP2_PATH) then
   begin
-    LTFF(g_pd3dDevice, CMAP2_PATH, mt2);
-
+    LTFF(g_pd3dDevice, CMAP2_PATH, mt2, 0, nil, false);
   end
   else
   begin
-
     laststate:= 'Generating minimap';
     menu.DrawLoadScreen(78);
 
@@ -1925,7 +1966,7 @@ begin
   if not useoldterrain then
     if fileexists(CMAP3_PATH) then
     begin
-      LTFF(g_pd3dDevice, CMAP3_PATH, mt1, TEXFLAG_FIXRES);
+      LTFF(g_pd3dDevice, CMAP3_PATH, mt1, TEXFLAG_FIXRES, nil, false);
     end
     else
     begin
@@ -2052,13 +2093,13 @@ var
   hov:integer;
   radio:string;
 begin
-  if findfirst('mp3\*.mp3', faAnyFile - fadirectory, myrec) = 0 then
+  if findfirst('mp3/*.mp3', faAnyFile - fadirectory, myrec) = 0 then
     repeat
       setlength(mp3filelist, length(mp3filelist) + 1);
       mp3filelist[high(mp3filelist)]:= 'mp3\' + myrec.name;
     until not (findnext(myrec) = 0);
 
-  if findfirst('radio\*.m3u', faAnyFile - fadirectory, myrec) = 0 then
+  if findfirst('radio/*.m3u', faAnyFile - fadirectory, myrec) = 0 then
     repeat
       case myrec.Name[2] of
         'm':hov:=0; //aMbient
@@ -2067,7 +2108,7 @@ begin
       else
         hov:=0;
       end;
-      radio:=readm3urecord('radio\' + myrec.name);
+      radio:=readm3urecord('radio/' + myrec.name);
       if radio <> '' then
       begin
         setlength(mp3strms[hov], length(mp3strms[hov]) + 1);
@@ -2075,7 +2116,7 @@ begin
       end;
     until not (findnext(myrec) = 0);
 
-  if findfirst('radio\*.pls', faAnyFile - fadirectory, myrec) = 0 then
+  if findfirst('radio/*.pls', faAnyFile - fadirectory, myrec) = 0 then
     repeat
       case myrec.Name[2] of
         'm':hov:=0; //aMbient
@@ -2085,7 +2126,7 @@ begin
         hov:=0;
       end;
       setlength(mp3strms[hov], length(mp3strms[hov]) + 1);
-      mp3strms[hov][high(mp3strms[hov])]:=readplsrecord('radio\' + myrec.name);
+      mp3strms[hov][high(mp3strms[hov])]:=readplsrecord('radio/' + myrec.name);
     until not (findnext(myrec) = 0);
 
 end;
@@ -2113,43 +2154,43 @@ begin
   // zeneinit;
 
  //  laststate:='Loading taunts';
-  LoadStrm('tch\begin'); //0  TECH
-  LoadStrm('tch\end');
-  LoadStrm('tch\targ_el');
-  LoadStrm('tch\subj_ter');
-  LoadStrm('tch\sens_rep_own');
-  LoadStrm('tch\resist_is_fut'); //5
-  LoadStrm('tch\recalc_en_num');
-  LoadStrm('tch\impressive');
-  LoadStrm('tch\excellent');
-  LoadStrm('tch\error_666');
-  LoadStrm('tch\crt_dmg_det'); //10
-  LoadStrm('tch\cls_a_sht');
-  LoadStrm('tch\killing_spree'); //12 killing spreek
-  LoadStrm('tch\rampage');
-  LoadStrm('tch\dominating');
-  LoadStrm('tch\unstoppable'); //15
-  LoadStrm('tch\godlike');
-  LoadStrm('tch\wicked_sick');
-  LoadStrm('gun\begin'); //18 GUN
-  LoadStrm('gun\end');
-  LoadStrm('gun\you_the_man'); //20
-  LoadStrm('gun\thy_mst_lk');
-  LoadStrm('gun\tht_ws_nst');
-  LoadStrm('gun\tht_it_sldr');
-  LoadStrm('gun\tht_a_kill');
-  LoadStrm('gun\ownage'); //25
-  LoadStrm('gun\one_down');
-  LoadStrm('gun\nc_sht_man');
-  LoadStrm('gun\keep_up');
-  LoadStrm('gun\grt_shot');
-  LoadStrm('gun\good_work'); //30
-  LoadStrm('gun\killing_spree'); //31 killing spreek
-  LoadStrm('gun\rampage');
-  LoadStrm('gun\dominating');
-  LoadStrm('gun\unstoppable');
-  LoadStrm('gun\godlike'); //35
-  LoadStrm('gun\wicked_sick');
+  LoadStrm('tch/begin'); //0  TECH
+  LoadStrm('tch/end');
+  LoadStrm('tch/targ_el');
+  LoadStrm('tch/subj_ter');
+  LoadStrm('tch/sens_rep_own');
+  LoadStrm('tch/resist_is_fut'); //5
+  LoadStrm('tch/recalc_en_num');
+  LoadStrm('tch/impressive');
+  LoadStrm('tch/excellent');
+  LoadStrm('tch/error_666');
+  LoadStrm('tch/crt_dmg_det'); //10
+  LoadStrm('tch/cls_a_sht');
+  LoadStrm('tch/killing_spree'); //12 killing spreek
+  LoadStrm('tch/rampage');
+  LoadStrm('tch/dominating');
+  LoadStrm('tch/unstoppable'); //15
+  LoadStrm('tch/godlike');
+  LoadStrm('tch/wicked_sick');
+  LoadStrm('gun/begin'); //18 GUN
+  LoadStrm('gun/end');
+  LoadStrm('gun/you_the_man'); //20
+  LoadStrm('gun/thy_mst_lk');
+  LoadStrm('gun/tht_ws_nst');
+  LoadStrm('gun/tht_it_sldr');
+  LoadStrm('gun/tht_a_kill');
+  LoadStrm('gun/ownage'); //25
+  LoadStrm('gun/one_down');
+  LoadStrm('gun/nc_sht_man');
+  LoadStrm('gun/keep_up');
+  LoadStrm('gun/grt_shot');
+  LoadStrm('gun/good_work'); //30
+  LoadStrm('gun/killing_spree'); //31 killing spreek
+  LoadStrm('gun/rampage');
+  LoadStrm('gun/dominating');
+  LoadStrm('gun/unstoppable');
+  LoadStrm('gun/godlike'); //35
+  LoadStrm('gun/wicked_sick');
   menu.DrawLoadScreen(90);
 end;
 
@@ -2160,6 +2201,9 @@ var
 begin
   muks.jkez:=fegyv.jkez(myfegyv, mstat);
   muks.bkez:=fegyv.bkez(myfegyv, mstat);
+  //if (mstat and MSTAT_MASK) = 7 then muks.jkez.y := muks.jkez.y + 5;
+
+  laststate:= 'rendermykez - setupmymuksmatr - kezek';
 
   case mstat and MSTAT_MASK of
     0:muks.stand((mstat and MSTAT_GUGGOL) > 0);
@@ -2168,8 +2212,14 @@ begin
     3:muks.SideWalk(animstat, (mstat and MSTAT_GUGGOL) > 0);
     4:muks.SideWalk(1 - animstat, (mstat and MSTAT_GUGGOL) > 0);
     5:muks.Runn(animstat, true);
+    //6:muks.Chat(animstat, (mstat and MSTAT_GUGGOL) > 0);
+    7:muks.Greet(animstat, (mstat and MSTAT_GUGGOL) > 0);
+    8:muks.Fegyverup(animstat, (mstat and MSTAT_GUGGOL) > 0);
   else muks.stand((mstat and MSTAT_GUGGOL) > 0);
   end;
+
+  laststate:= 'rendermykez - setupmymuksmatr - case';
+
 
   pos:=d3dxvector3(ccpx, ccpy, ccpz);
   D3DXMatrixRotationY(matWorld2, szogx + d3dx_pi);
@@ -2264,10 +2314,10 @@ var
   t1:single;
 begin
 
-  if fileexists('data\cfg\misc.cfg') then
+  if fileexists('data/cfg/misc.cfg') then
   begin
     try
-      assignfile(fil2, 'data\cfg\misc.cfg');
+      assignfile(fil2, 'data/cfg/misc.cfg');
       reset(fil2);
       read(fil2, menufi[MI_MOUSE_SENS].elx);
       read(fil2, menufi[MI_VOL].elx);
@@ -2393,8 +2443,6 @@ begin
   end;
 end;
 
-
-
 function InitializeAll:HRESULT;
 var
   pIndices:PWordArray;
@@ -2425,7 +2473,9 @@ begin
 
   hoszin:=stuffjson.GetInt(['color_sand']) and $FFFFFF;
   nhszin:=stuffjson.GetInt(['color_wet_sand']) and $FFFFFF;
+
   vizszin:=stuffjson.GetInt(['color_water']) and $FFFFFF;
+
   ambientszin:=cardinal(stuffjson.GetInt(['light', 'color_ambient']));
   gunautoeffekt:=stuffjson.GetBool(['vehicle', 'gun', 'effect']);
   techautoeffekt:=stuffjson.GetBool(['vehicle', 'tech', 'effect']);
@@ -2446,7 +2496,6 @@ begin
   water1col:=stuffjson.GetInt(['weapon', 'WATER', '1']); //vízbe lövünk
   water2col:=stuffjson.GetInt(['weapon', 'WATER', '2']);
   dustcol:=stuffjson.GetInt(['weapon', 'DUST']);
-
 
   col_dust_grass:=stuffjson.GetInt(['color_grass_dust']);
   col_dust_mud:=stuffjson.GetInt(['color_mud_dust']);
@@ -2484,6 +2533,17 @@ begin
   if col_water = 0 then col_water:=$FF0064FA;
   if col_stone = 0 then col_stone:=$FF6E6E6C;
 
+  if winter then
+  begin
+   vizszin:=$FFFFFFFF;
+   water1col:=$FFFFFFFF;
+   water2col:=$FFFFFFFF;
+   dustcol:=$FFFFFFFF;
+   col_dust_grass:=$FFFFFFFF;
+   col_dust_mud:=$FFFFFFFF;
+   col_grass:=$FFFFFFFF;
+   col_water:=$FFFFFFFF;
+  end;
 
   setlength(bubbles, stuffjson.GetNum(['bubbles']));
   for i:=0 to stuffjson.GetNum(['bubbles']) - 1 do
@@ -2670,13 +2730,14 @@ begin
   laststate:=lang[86];
   loadspecials;
   menu.DrawLoadScreen(50);
-{$IFDEF panthihogomb}
+
+  //hogomb
   if FAILED(D3DXCreateSphere(g_pD3DDevice, 1, 30, 20, tempmesh, nil)) then Exit;
   if tempmesh = nil then exit;
   if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL, g_pd3ddevice, hogombmesh)) then exit;
   if tempmesh <> nil then tempmesh:=nil;
   normalizemesh(hogombmesh);
-{$ENDIF}
+
 
   bubbleeffect;
 
@@ -2708,56 +2769,84 @@ begin
 
   if useoldterrain then
   begin
-    if not LTFF(g_pd3dDevice, 'data\textures\grass_02.jpg', futex, TEXFLAG_COLOR) then exit;
-    if not LTFF(g_pd3dDevice, 'data\textures\hnoise.jpg', hnoise) then exit;
-    if not LTFF(g_pd3dDevice, 'data\textures\sand.jpg', homtex, TEXFLAG_COLOR) then exit;
-    if not LTFF(g_pd3dDevice, 'data\textures\rock_01.jpg', kotex, TEXFLAG_COLOR) then exit;
-    if not LTFF(g_pd3dDevice, 'data\textures\gnoise_02.jpg', noise3) then exit;
+    if winter then
+    begin
+      if not LTFF(g_pd3dDevice, 'data/textures/snow_02.jpg', futex, TEXFLAG_COLOR, nil, false) then exit;
+    end
+    else
+    begin
+      if not LTFF(g_pd3dDevice, 'data/textures/grass_02.jpg', futex, TEXFLAG_COLOR, nil, false) then exit;
+    end;
+    if not LTFF(g_pd3dDevice, 'data/textures/hnoise.jpg', hnoise, 0, nil, false) then exit;
+    if not LTFF(g_pd3dDevice, 'data/textures/sand.jpg', homtex, TEXFLAG_COLOR, nil, false) then exit;
+    if not LTFF(g_pd3dDevice, 'data/textures/rock_01.jpg', kotex, TEXFLAG_COLOR, nil, false) then exit;
+    if not LTFF(g_pd3dDevice, 'data/textures/gnoise_02.jpg', noise3, 0, nil, false) then exit;
   end
   else
   begin
-    if not LTFF(g_pd3dDevice, 'data\textures\grass.jpg', futex, TEXFLAG_COLOR) then exit;
-    if not LTFF(g_pd3dDevice, 'data\textures\shadernoise.jpg', hnoise) then exit; //shaderes terepen fûre és homokra
-    if not LTFF(g_pd3dDevice, 'data\textures\sand_02.jpg', homtex, TEXFLAG_COLOR) then exit;
-    if not LTFF(g_pd3dDevice, 'data\textures\rock_12.jpg', kotex, TEXFLAG_COLOR) then exit;
+    if winter then
+    begin
+      if not LTFF(g_pd3dDevice, 'data/textures/snow.jpg', futex, TEXFLAG_COLOR, nil, false) then exit;
+    end
+    else
+    begin
+      if not LTFF(g_pd3dDevice, 'data/textures/grass.jpg', futex, TEXFLAG_COLOR, nil, false) then exit;
+    end;
+    if not LTFF(g_pd3dDevice, 'data/textures/shadernoise.jpg', hnoise, 0, nil, false) then exit; //shaderes terepen fûre és homokra
+    if not LTFF(g_pd3dDevice, 'data/textures/sand_02.jpg', homtex, TEXFLAG_COLOR, nil, false) then exit;
+    if not LTFF(g_pd3dDevice, 'data/textures/rock_12.jpg', kotex, TEXFLAG_COLOR, nil, false) then exit;
   end;
 
-  //  if not LTFF(g_pd3dDevice, 'data\textures\rock_13.jpg',kotex2,TEXFLAG_COLOR) then exit;
-  //  if not LTFF(g_pd3dDevice, 'data\textures\rock_detail.jpg',kotex3,TEXFLAG_COLOR) then exit;
-  if not LTFF(g_pd3dDevice, 'data\textures\gnoise.jpg', noise2tex) then exit;
-  if not LTFF(g_pd3dDevice, 'data\textures\rnoise.jpg', noisetex) then exit;
+  //  if not LTFF(g_pd3dDevice, 'data/textures/rock_13.jpg',kotex2,TEXFLAG_COLOR) then exit;
+  //  if not LTFF(g_pd3dDevice, 'data/textures/rock_detail.jpg',kotex3,TEXFLAG_COLOR) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/gnoise.jpg', noise2tex) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/rnoise.jpg', noisetex) then exit;
 
   menu.DrawLoadScreen(55);
   writeln(logfile, 'Loaded ground textures');flush(logfile);
-  if not LTFF(g_pd3dDevice, 'data\textures\water.jpg', viztex) then exit;
-  if not LTFF(g_pd3dDevice, 'data\textures\water2.jpg', waterbumpmap) then exit;
+
+  if winter then
+  begin
+    if not LTFF(g_pd3dDevice, 'data/textures/ice.jpg', viztex) then exit;
+    waterbumpmap:=viztex;
+  end
+  else
+  begin
+    if not LTFF(g_pd3dDevice, 'data/textures/water.jpg', viztex) then exit;
+    if not LTFF(g_pd3dDevice, 'data/textures/water2.jpg', waterbumpmap) then exit;
+  end;
   writeln(logfile, 'Loaded water texture');flush(logfile);
-  if not LTFF(g_pd3dDevice, 'data\textures\sky1.png', skytex) then exit;
-  if not LTFF(g_pd3dDevice, 'data\gui\sun1.png', suntex) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/sky.png', skytex) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/sun.png', suntex) then exit;
 
   initsky;
   writeln(logfile, 'Loaded Sky');flush(logfile);
   menu.DrawLoadScreen(60);
-  if FAILED(D3DXLoadMeshFromX('data\models\hummer.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+  addfiletochecksum('data/models/vehicles/hummer.x');
+  if FAILED(D3DXLoadMeshFromX('data/models/vehicles/hummer.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
   if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL or D3DFVF_TEX1, g_pd3ddevice, g_pautomesh)) then exit;
   if tempmesh <> nil then tempmesh:=nil;
 
-  if FAILED(D3DXLoadMeshFromX('data\models\antigrav.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+  addfiletochecksum('data/models/vehicles/antigrav.x');
+  if FAILED(D3DXLoadMeshFromX('data/models/vehicles/antigrav.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
   if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL or D3DFVF_TEX1, g_pd3ddevice, g_pantigravmesh)) then exit;
   if tempmesh <> nil then tempmesh:=nil;
 
-  if FAILED(D3DXLoadMeshFromX('data\models\kerek.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+  addfiletochecksum('data/models/vehicles/kerek.x');
+  if FAILED(D3DXLoadMeshFromX('data/models/vehicles/kerek.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
   if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL or D3DFVF_TEX1, g_pd3ddevice, g_pkerekmesh)) then exit;
   if tempmesh <> nil then tempmesh:=nil;
   normalizemesh(G_pkerekmesh);
   normalizemesh(g_pautomesh, false);
   normalizemesh(g_pantigravmesh);
 
-  if FAILED(D3DXLoadMeshFromX('data\models\rocket003.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+  addfiletochecksum('data/models/weapons/projectiles/rocket.x');
+  if FAILED(D3DXLoadMeshFromX('data/models/weapons/projectiles/rocket.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
   if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL + D3DFVF_DIFFUSE, g_pd3ddevice, lawmesh)) then exit;
   if tempmesh <> nil then tempmesh:=nil;
 
-  if FAILED(D3DXLoadMeshFromX('data\models\gomb.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+  addfiletochecksum('data/models/weapons/projectiles/gomb.x');
+  if FAILED(D3DXLoadMeshFromX('data/models/weapons/projectiles/gomb.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
   if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL, g_pd3ddevice, noobmesh)) then exit;
   if tempmesh <> nil then tempmesh:=nil;
 
@@ -2766,9 +2855,9 @@ begin
 
   tegla:=Tauto.create(d3dxvector3(1, 0, 0), d3dxvector3(0, 1, 0), d3dxvector3(0, 0, 1), d3dxvector3zero, d3dxvector3zero, 0.9, 0.99, hummkerekarr, 1, 0.1, 0.03, 0.2, 0.3, 0.2, 0, 0, false);
   tegla.disabled:=true;
-  if not LTFF(g_pd3dDevice, 'data\textures\hummer.jpg', cartex, TEXFLAG_COLOR) then exit;
-  if not LTFF(g_pd3dDevice, 'data\textures\antigrav.jpg', antigravtex, TEXFLAG_COLOR) then exit;
-  if not LTFF(g_pd3dDevice, 'data\textures\kerektex.jpg', kerektex, TEXFLAG_COLOR) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/hummer.jpg', cartex, TEXFLAG_COLOR) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/antigrav.jpg', antigravtex, TEXFLAG_COLOR) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/kerektex.jpg', kerektex, TEXFLAG_COLOR) then exit;
   writeln(logfile, 'Loaded vehicles');
 
   result:=D3DXCreateTexture(g_pd3ddevice, SCWidth, SCheight, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, effecttexture);
@@ -3028,10 +3117,6 @@ begin
     g_pD3D:=nil;
 end;
 
-
-
-
-
 procedure Setupidentmatr;
 //var
   //matWorld: TD3DMatrix;
@@ -3093,7 +3178,6 @@ begin
     if (ppl[mi].pos.state and MSTAT_GUGGOL) > 0 then
       pos.y:=pos.y - 0.5;
     D3DXMatrixRotationY(matWorld2, ppl[mi].pos.irany + d3dx_pi);
-
     D3DXMatrixRotationX(mat2, clipszogy(ppl[mi].pos.irany2));
     D3DXMatrixMultiply(matWorld2, mat2, matWorld2);
 
@@ -3123,6 +3207,9 @@ begin
   end else
     MessageBox(0, 'Benttthagyott AI kód', 'Faszom', 0);
 
+  if (ppl[mi].pos.state and MSTAT_MASK) = 8 then
+    D3DXMatrixTranslation(matWorld, -0.2, 0.2, -0.1);
+
   D3DXMatrixMultiply(matWorld2, matWorld, matWorld2);
   // pos.x:=pos.x+0.05;
 
@@ -3141,7 +3228,7 @@ end;
 procedure SetupMyFegyvmatr;
 var
   matWorld, mat, mat2:TD3DMatrix;
-  acpx, acpy, acpz:single;
+  acpx, acpy, acpz, offsetX, offsetY, offsetZ:single;
 begin
   {
 if repules then
@@ -3172,15 +3259,49 @@ szogx:=szogx+0.2*eltim;{}
   else
     D3DXMatrixTranslation(matWorld, acpx, acpy + 1.5, acpz); //sajt
 
-  D3DXMatrixRotationY(mat, mszogx + d3dx_pi);
+  if inspect then
+  begin
+    D3DXMatrixRotationY(mat, mszogx + d3dx_pi * 0.5);
+    D3DXMatrixRotationX(mat2, mszogy * 0.4);
+  end
+  else
+    if (mstat and MSTAT_MASK) = 8 then
+    begin
+      D3DXMatrixRotationY(mat, mszogx + d3dx_pi);
+      D3DXMatrixRotationX(mat2, d3dx_pi * 0.5);
+    end
+    else
+      begin //no shit happenning
+        D3DXMatrixRotationY(mat, mszogx + d3dx_pi);
+        D3DXMatrixRotationX(mat2, mszogy);
+      end;
 
-  D3DXMatrixRotationX(mat2, mszogy);
+
   D3DXMatrixMultiply(mat, mat2, mat);
 
   if csipo then
     D3DXMatrixTranslation(mat2, -0.1, -0.1, 0.0 + hatralok)
   else
     D3DXMatrixTranslation(mat2, 0, 0, 0.05 + hatralok * 0.5);
+
+
+  if inspect then //z+ van elore, x+ balra
+  begin
+    offsetX := -0.5 - sin(mszogy) * 0.8;
+    if offsetX > -0.2 then offsetX := -0.2;
+    if offsetX < -0.65 then offsetX := -0.65;
+    offsetZ := 0.4;
+    offsetY := 0.0;
+    case myfegyv of
+      FEGYV_M82A1, FEGYV_HPL: begin offsetZ := 0.5; offsetX := offsetX - 0.1; end;
+      FEGYV_QUAD: begin offsetY:= 0.05; offsetZ := 0.3; offsetX := offsetX - 0.2; end;
+      FEGYV_NOOB: begin offsetY:= 0.05; offsetZ := 0.2; offsetX := offsetX - 0.2; end;
+      FEGYV_X72: begin offsetX := offsetX - 0.2; end;
+      FEGYV_LAW, FEGYV_H31_T, FEGYV_H31_G: begin offsetZ := 0.25; offsetX := offsetX - 0.1; end;
+    end;
+    D3DXMatrixTranslation(mat2, offsetX, offsetY, offsetZ);
+  end;
+
 
   mat2._41:=mat2._41 - sin(mszogx - szogx) * 0.3;
   mat2._42:=mat2._42 - sin(mszogy - szogy) * 0.3;
@@ -3352,6 +3473,7 @@ begin
   mapmode:=0;
   mapbol:=false;
   halal:=0;
+  spectate:=0;
 
 {$IFDEF fegyverteszt}
 
@@ -4064,8 +4186,6 @@ var
 label
   atugor;
 begin
-
-
   D3DXVec3Subtract(mysebVec, d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^));
   myseb:=D3DXVec3Length(mysebVec);
 
@@ -4115,12 +4235,23 @@ begin
   ds:=sin(szogx);
   dc:=cos(szogx);
   px:=0;py:=0;
+
+  //ICE
+  if (cpy^ <= waterlevel+0.5) and winter then cpy^ := cpy^+0.008;
+
   // TODO
-  gugg:=dine.keyd(DIK_LCONTROL) and (halal = 0) and iranyithato;
+  inspect:=dine.keyd(DIK_O) and (halal = 0) and iranyithato and csipo;
+  gugg:=dine.keyd(DIK_LCONTROL) and (halal = 0) and iranyithato and (not inspect);
+  if inspect then begin iranyithato := false; nemlohet := true; end;
   if (myfegyv = FEGYV_QUAD) and (not csipo) then iranyithato:=false;
   fut:=dine.keyd(DIK_W) and (not dine.keyd(DIK_LSHIFT)) and ((vizben < 0.5) or nemviz) and iranyithato and csipo and (not gugg) and (halal = 0);
 
   mstat:=MSTAT_ALL;
+  if dine.keyd(DIK_1) then begin mstat:=MSTAT_GREET; nemlohet := true; end;
+  if dine.keyd(DIK_2) then begin mstat:=MSTAT_FEGYOUP; nemlohet := true; end; //WiP
+  //if dine.keyd(DIK_3) then begin mstat:=MSTAT_GREET; nemlohet := true; end; //TODO
+  //if dine.keyd(DIK_4) then begin mstat:=MSTAT_GREET; nemlohet := true; end; //TODO
+  //if dine.keyd(DIK_5) then begin mstat:=MSTAT_GREET; nemlohet := true; end; //TODO
   if dine.keyd(DIK_D) and not dine.keyd(DIK_A) then begin px:=px + dc * 0.02;py:=py - ds * 0.02;mstat:=MSTAT_BALRA end;
   if dine.keyd(DIK_A) and not dine.keyd(DIK_D) then begin px:=px - dc * 0.02;py:=py + ds * 0.02;mstat:=MSTAT_JOBBRA end;
   if dine.keyd(DIK_S) and not dine.keyd(DIK_W) then begin px:=px - ds * 0.02;py:=py - dc * 0.02;mstat:=MSTAT_HATRA end;
@@ -4861,6 +4992,7 @@ begin
       begin
 
         halal:=1;
+		spectate:=0;
         // setupmymuksmatr;
         d3dxvec3subtract(tmp, D3DXVector3(cpx^, cpy^ + 1, cpz^), hol);
 
@@ -5807,7 +5939,7 @@ begin
     Particlesystem_add(Simpleparticlecreate(v1, D3DXVector3zero, 0.03, 0, $C0C0A0A0, 0, 20));
 end;
 
-{$IF Defined(panthihogomb) or Defined(winter) }
+//{$IF Defined(panthihogomb) or Defined(winter) }
 
 procedure addhopehely(tav:integer);
 var
@@ -5845,7 +5977,7 @@ begin
   D3DXVec3Subtract(v2, v1, s2);
   Particlesystem_add(Simpleparticlecreate(v2, s, 0.03, 0.03, $80FFFFFF, $80FFFFFF, 500));
 end;
-{$IFEND}
+//{$IFEND}
 
 procedure AddLAW(av1, av2:TD3DXvector3;akl:integer);
 begin
@@ -6348,6 +6480,8 @@ procedure handletriggers;
 var
   i, n:integer;
   atav:single;
+label
+  vege;
 begin
   n:=Length(triggers);
   for i:=0 to n - 1 do
@@ -6355,6 +6489,7 @@ begin
     begin
       if active then
       begin
+        if autoban and not vehicle then goto vege;
         if autoban then
           atav:=tavpointpointsq(pos, tegla.pos)
         else
@@ -6394,6 +6529,7 @@ begin
 
     end;
   usebutton:=false;
+  vege:
 end;
 
 procedure handleteleports;
@@ -6572,9 +6708,48 @@ end;
 
 {$ENDIF}
 
+procedure handleSkins;
+begin
+      case myfegyv of //ha volt skinem, ilyen lesz
+        FEGYV_MPG: myfegyv_skin := fegyvskins[5];
+        FEGYV_M82A1: myfegyv_skin := fegyvskins[1];
+        FEGYV_M4A1: myfegyv_skin := fegyvskins[0];
+        FEGYV_QUAD: myfegyv_skin := fegyvskins[6];
+        FEGYV_NOOB: myfegyv_skin := fegyvskins[7];
+        FEGYV_LAW: myfegyv_skin := fegyvskins[2];
+        FEGYV_X72: myfegyv_skin := fegyvskins[8];
+        FEGYV_MP5A3: myfegyv_skin := fegyvskins[3];
+        FEGYV_H31_T: myfegyv_skin := FEGYV_H31_T;
+        FEGYV_H31_G: myfegyv_skin := FEGYV_H31_G;
+        FEGYV_HPL: myfegyv_skin := fegyvskins[9];
+        FEGYV_BM3: myfegyv_skin := fegyvskins[4];
+      end;
+
+    if multisc <> nil then // el van dontve myfegyv meg a skinje is
+    begin
+    if (myfegyv_skin < 5) or ((myfegyv_skin > 127) and (myfegyv_skin < 133)) then  //nincs egyedi skinem
+      if multisc.kills >= 50 then // eleget oltem
+        case myfegyv of
+          FEGYV_MPG: myfegyv_skin := FEGYV_G_MPG;
+          FEGYV_M82A1: myfegyv_skin := FEGYV_G_M82A1;
+          FEGYV_M4A1: myfegyv_skin := FEGYV_G_M4A1;
+          FEGYV_QUAD: myfegyv_skin := FEGYV_G_QUAD;
+          FEGYV_NOOB: myfegyv_skin := FEGYV_G_NOOB;
+          FEGYV_LAW: myfegyv_skin := FEGYV_G_LAW;
+          FEGYV_X72: myfegyv_skin := FEGYV_G_X72;
+          FEGYV_MP5A3: myfegyv_skin := FEGYV_G_MP5A3;
+          FEGYV_H31_T: myfegyv_skin := FEGYV_H31_T;
+          FEGYV_H31_G: myfegyv_skin := FEGYV_H31_G;
+          FEGYV_HPL: myfegyv_skin := FEGYV_G_HPL;
+          FEGYV_BM3: myfegyv_skin := FEGYV_G_BM3;
+        end //case
+   end;
+end;
+
+
 procedure handlefizik;
 var
-  i, j, k:integer;
+  i, j, k, l, m, m1:integer;
   ox, oy, oz, amag, tx, tz:single;
   norm, hova, opos, tmp, tmp3, tmp4, tmp5, tmps:TD3DXVector3;
   korlat:integer;
@@ -6596,7 +6771,6 @@ var
 
   start, stop:cardinal;
 begin
-
   gtc:=gettickcount;
   korlat:=0;
   repeat
@@ -6618,6 +6792,7 @@ begin
         if (not tuleli) then
         begin
           halal:=1;
+		      spectate:=0;
           autoban:=false;
           addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(0.00, -0.1, 0), myfegyv, 10, 0, -1);
         end;
@@ -6636,6 +6811,7 @@ begin
             end;
           if (not tuleli) then begin
             halal:=1;
+            spectate:=0;
             //couldn't swim
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(0.00, 0.0, 0), myfegyv, 10, 0, -1);
           end;
@@ -6812,11 +6988,10 @@ begin
                         D3DXVec3Add(tmp3, randomvec2(animstat * 100 + hanyszor, 0.01, 0.05, 0.01), D3DXVec3Scale(tmp5, aauto.getmotionvec, 0.5)^)^
                         , 0.5 * tmpfloat1, 2 * tmpfloat1, 0.985, water2col, $0, 50 + round(50 * opt_particle / PARTICLE_MAX), TX_HOMALY));
                   end;
-{$IFDEF panthihogomb}
-                  if tavpointpointsq(DNSVec, tmp) < DNSrad * DNSRad then
+
+                  if (tavpointpointsq(DNSVec, tmp) < DNSrad * DNSRad) and winter then
                     Particlesystem_add(SimpleparticleCreate(tmp, randomvec(animstat * 100 + hanyszor, 0.1), 0.5, 2, $FFFFFFFF, $0, 100))
-                  else
-{$ENDIF}
+
                 end;
 
               end;
@@ -7125,6 +7300,7 @@ begin
       if tavpointpointsq(tegla.pos, tegla.vpos) > sqr(0.1) then
       begin
         halal:=1;
+		spectate:=0;
         setupmymuksmatr;
         addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3((cpox^ + cpx^) / 2, cpy^ - 0.5, (cpoz^ + cpz^) / 2), d3dxvector3(-sin(szogx) * 0.3, -0.1, -cos(szogx) * 0.3), myfegyv, 0, 0, -1);
       end;
@@ -7187,7 +7363,8 @@ begin
     laststate:= 'Weather';
     felho.update;
 
-{$IFDEF panthihogomb}
+if winter then
+begin
     if tavpointpointsq(DNSVec, campos) < DNSRad * DNSRad then
     begin
       for j:=0 to 1 do
@@ -7202,14 +7379,13 @@ begin
           if not (autoban and (d3dxvec3lengthsq(tmp) > sqr(0.2))) then
             for i:=round(felho.coverage) to 5 do
               for j:=0 to 2 * opt_particle do
-{$IFDEF winter}
-                addhopehely((i + 2) * (10 - round(felho.coverage)) * 2);
-{$ELSE}
-                addesocsepp((i + 2) * (10 - round(felho.coverage)) * 2);
-{$ENDIF}
+                if winter then addhopehely((i + 2) * (10 - round(felho.coverage)) * 2)
+                else addesocsepp((i + 2) * (10 - round(felho.coverage)) * 2);
       end;
     end;
-{$ELSE}
+end
+else
+begin
     if felho.coverage <= 5 then
     begin
       d3dxvec3subtract(tmp, tegla.vpos, tegla.pos);
@@ -7217,13 +7393,9 @@ begin
         if not (autoban and (d3dxvec3lengthsq(tmp) > sqr(0.2))) then
           for i:=round(felho.coverage) to 5 do
             for j:=0 to 2 * opt_particle do
-{$IFDEF winter}
-              addhopehely((i + 2) * (10 - round(felho.coverage)) * 2);
-{$ELSE}
               addesocsepp((i + 2) * (10 - round(felho.coverage)) * 2);
-{$ENDIF}
     end;
-{$ENDIF}
+end;
 
     ParticleSystem_Update;
     if dobulletholes then
@@ -7253,7 +7425,7 @@ begin
     // nézzük a beérkezett medálokat
     if (multisc.medallist[0] <> '') and (menu.medalanimstart = 0) then
     begin
-      LTFF(g_pd3dDevice, 'data\medal\' + multisc.medallist[0] + '.png', menu.medaltex);
+      LTFF(g_pd3dDevice, 'data/textures/medals/' + multisc.medallist[0] + '.png', menu.medaltex, 0, nil, false);
       menu.medalanimstart:=GetTickCount;
 
       multisc.medallist[0]:=multisc.medallist[1];
@@ -7790,6 +7962,7 @@ begin
     Postmessage(hwindow, WM_DESTROY, 0, 0);
   end;
 
+  handleskins;
   csinaljfaszapointereket;
 end;
 
@@ -7815,12 +7988,8 @@ begin
     if opt_rain then
       for i:=round(felho.coverage) to 5 do
         for j:=0 to 2 * opt_particle do
-{$IFDEF winter}
-          addhopehely((i + 2) * (10 - round(felho.coverage)) * 2);
-{$ELSE}
-          addesocsepp((i + 2) * (10 - round(felho.coverage)) * 2);
-{$ENDIF}
-
+          if winter then addhopehely((i + 2) * (10 - round(felho.coverage)) * 2)
+          else addesocsepp((i + 2) * (10 - round(felho.coverage)) * 2);
 
     ParticleSystem_Update;
     if dobulletholes then
@@ -8024,7 +8193,7 @@ begin
         end;
 
       if currevent = nil then
-        currevent:=TSpaceshipEvent.Create(g_pd3ddevice, true, 'data\event\');
+        currevent:=TSpaceshipEvent.Create(g_pd3ddevice, true, 'events/');
     end;
 
     //if portalevent<>nil then
@@ -8416,11 +8585,8 @@ begin
 
   StopSound(15 - abuft, 125);
 
-{$IFDEF panthihogomb}
-  if felho.coverage < 2 then
-{$ELSE}
-  if felho.coverage <= 5 then
-{$ENDIF}
+
+  if ((felho.coverage <= 5) and not winter) or ((felho.coverage < 2) and winter) then
   begin
     playsound(12, true, 125, true, D3DXVector3Zero);
     SetSoundProperties(12, 125, round(-1200 - felho.coverage * 400), 1, true, D3DXVector3Zero);
@@ -8738,6 +8904,16 @@ begin
   end;
 end;
 
+function strInArr(needle:string;haystack:array of string):boolean;
+var
+  i:integer;
+begin
+  result := false;
+  for i:=high(haystack) downto 1 do
+    if (needle = haystack[i]) then
+      result := true;
+end;
+
 procedure handleBulletholes(aloves:Tloves);
 var
   j, k:integer;
@@ -8998,6 +9174,7 @@ begin
         begin
 
           halal:=1;
+		  spectate:=0;
           // setupmymuksmatr;
           d3dxvec3subtract(tmp, aloves.v2, aloves.pos);
           if (aloves.fegyv = FEGYV_M82A1) or (aloves.fegyv = FEGYV_QUAD) or (myfegyv = FEGYV_HPL) then
@@ -9044,8 +9221,10 @@ begin
       D3DXMatrixMultiply(matWorld, matWorld2, matWorld);
       mat_world:=matworld;
 
-      muks.jkez:=fegyv.jkez(ppl[index].pls.fegyv, state);
-      muks.bkez:=fegyv.bkez(ppl[index].pls.fegyv, state);
+      muks.jkez:=fegyv.jkez(ppl[index].pls.fegyvskin, state);
+      muks.bkez:=fegyv.bkez(ppl[index].pls.fegyvskin, state);
+
+      if (state and MSTAT_MASK) = 7 then muks.bkez.y := muks.bkez.y + 5;
 
       case state and MSTAT_MASK of
         0:muks.stand((state and MSTAT_GUGGOL) > 0);
@@ -9054,8 +9233,11 @@ begin
         3:muks.SideWalk(animstate, (state and MSTAT_GUGGOL) > 0);
         4:muks.SideWalk(1 - animstate, (state and MSTAT_GUGGOL) > 0);
         5:muks.Runn(animstate, true);
+        //6:muks.Chat(animstate, (state and MSTAT_GUGGOL) > 0);
+        7:muks.Greet(animstate, (state and MSTAT_GUGGOL) > 0);
+        8:muks.Fegyverup(animstate, (state and MSTAT_GUGGOL) > 0);
       end;
-      addrongybaba(apos, vpos, gmbvec, ppl[index].pls.fegyv, mlgmb, random(20000) + 1, -1);
+      addrongybaba(apos, vpos, gmbvec, ppl[index].pls.fegyvskin, mlgmb, random(20000) + 1, -1);
     end;
   setlength(multip2p.hullak, 0);
 end;
@@ -9098,9 +9280,19 @@ begin
     //                  singtc:=sin((volttim mod round(15000*speed))*D3DX_PI*2/round(15000*speed));
     //                  cosgtc:=cos((volttim mod round(15000*speed))*D3DX_PI*2/round(15000*speed));
     //                      plsgtc:=(volttim mod round(20000*speed))/round(20000*speed);
-    singtc:=sin(vizkor1);
-    cosgtc:=cos(vizkor2);
-    plsgtc:=vizkor3;
+
+    if winter then
+      begin
+        singtc:=0;
+        cosgtc:=1;
+        plsgtc:=0;
+      end
+    else
+      begin
+        singtc:=sin(vizkor1);
+        cosgtc:=cos(vizkor2);
+        plsgtc:=vizkor3;
+      end;
   end;
 
 
@@ -9173,8 +9365,6 @@ begin
   begin
     g_pd3ddevice.drawprimitiveUP(D3DPT_TRIANGLEFAN, 8, viz, sizeof(TCustomvertex));
   end;
-
-
 
   g_pd3dDevice.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
   g_pd3ddevice.SetRenderState(D3DRS_ALPHABLENDENABLE, itrue);
@@ -10311,6 +10501,9 @@ begin
     3:muks.SideWalk(animstat, (astate and MSTAT_GUGGOL) > 0);
     4:muks.SideWalk(1 - animstat, (astate and MSTAT_GUGGOL) > 0);
     5:muks.Runn(animstat, true);
+    //6:muks.Chat(animstate,(astate and MSTAT_GUGGOL) > 0);
+    7:muks.Greet(animstat,(astate and MSTAT_GUGGOL) > 0);
+    8:muks.Fegyverup(animstat,(astate and MSTAT_GUGGOL) > 0);
   end;
 
   ppl[i].pls.fejh:=muks.gmbk[10];
@@ -10341,9 +10534,9 @@ begin
   with muks do
   begin
     d3dxmatrixinverse(mfm2, nil, matview);
-    tj:=fegyv.jkez(myfegyv, 0);
+    tj:=fegyv.jkez(myfegyv_skin, 0);
     tj:=D3DXVector3(tj.x + 0.05, tj.y - 1.5, tj.z - 0.1);
-    tb:=fegyv.bkez(myfegyv, 0);
+    tb:=fegyv.bkez(myfegyv_skin, 0);
     tb:=D3DXVector3(tb.x + 0.05, tb.y - 1.5, tb.z - 0.1);
 
     if (myfegyv = FEGYV_BM3) then
@@ -10352,6 +10545,19 @@ begin
       tb:=vec3add2(tb, D3DXVector3(-0.01, -0.01, 0.15));
     end;
 
+    //if (mstat and MSTAT_MASK) = 7 then tj.y := tj.y + 0.5;
+    case (mstat and MSTAT_MASK) of
+    7:
+      begin
+        tj.y := tj.y + 0.2;
+        tj.x := tj.x + 0.3;  // + <-mozgat-> -
+      end;
+    8:
+      begin
+        tj.y := tj.y - 0.5;
+        tj.x := tj.x + 0.3;
+      end;
+    end;
 
     //if (myfegyv=FEGYV_LAW) or (myfegyv=FEGYV_H31_T) or (myfegyv=FEGYV_H31_G) then begin tj.x:=tj.x-0.1; tb.x:=tb.x-0.1; end;
   //  if myfegyv=FEGYV_M4A1 then begin tj.y:=tj.y+0.03; tb.y:=tb.y+0.03; end; //todo WAT?
@@ -10919,14 +11125,9 @@ begin
   end;
 
   animstat:=(timegettime mod 1000) / 1000;
-
   laststate:= 'MMO stuff';
-
-
-
   handleMMO;
   handlemmocars;
-
 
   //dummypos.pos.z:=dummypos.pos.z+2*eltim;
   //dummypos.pos.y:=advwove(dummypos.pos.x,dummypos.pos.z);
@@ -10972,14 +11173,13 @@ begin
   end
   else
   begin
-    if halal > 6 then respawn;
+    if halal > 6 then if spectate = 0 then respawn;
   end;
 
 {$IFDEF fegyverteszt}
   if halal > 0 then
-    respawn;
+    if spectate = 0 then respawn;
 {$ENDIF}
-
   laststate:= 'Handlelovesek';
   Handlelovesek;
   laststate:= 'Handledoglodesek';
@@ -11164,7 +11364,7 @@ begin
     (if lightIntensity > 0 then lightIntensity:=max(0, lightIntensity - 0.04));
 
   //hát, ez elõre kell. pont.
-  if (opt_water > 0) then
+  if (opt_water > 0) and not winter then
     Renderreflectiontex;
 
   //###################
@@ -11404,6 +11604,7 @@ begin
     laststate:= 'Rendering Stickman and ragdolls';
 
     muks.init;
+    laststate:= 'muksinit';
     g_pd3dDevice.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
     g_pd3ddevice.SetRenderState(D3DRS_ALPHAREF, $80);
     g_pd3ddevice.SetRenderState(D3DRS_ALPHATESTENABLE, iTRUE);
@@ -11412,6 +11613,7 @@ begin
 
     D3DXMatrixIdentity(mat_world);
     setupidentmatr;
+    laststate:= 'setupidentmatr';
 
 
     if (menu.lap = -1) then //MENÜBÕL nem kéne...
@@ -11420,7 +11622,7 @@ begin
         if (csipo) or ((myfegyv <> FEGYV_M82A1) and (myfegyv <> FEGYV_HPL)) then
           if not nofegyv then
             rendermykez;
-
+      laststate:= 'rendermykez';
       pos:=D3DXVector3(cpx^, cpy^, cpz^);
       for i:=0 to rbszam do
         if abs(rongybabak[i].gmbk[10].y - cpy^) < 100 then
@@ -11428,7 +11630,7 @@ begin
           //g_pd3dDevice.SetRenderState(D3DRS_AMBIENT, rongybabak[i].szin);
           rongybabak[i].transfertomuks(muks);
           muks.Render(rongybabak[i].szin, mat_world, pos);
-
+          laststate:= 'muksrender';
 
         end;
 
@@ -11443,7 +11645,7 @@ begin
         if ppl[i].pls.visible then
           if tavpointpointsq(ppl[i].pos.pos, campos) < sqr(500) then
           begin
-            Rendermuks(i, ppl[i].pos.state, ppl[i].pls.fegyv);
+            Rendermuks(i, ppl[i].pos.state, ppl[i].pls.fegyv); //nem skin mert ez a babu szine
           end;
       end;
       muks.Flush;
@@ -11507,9 +11709,6 @@ begin
     if (menu.lap = -1) then //MENÜBÕL nem kéne...
     begin
 
-
-
-
       setupmyfegyvmatr;
       if not kulsonezet then
         if (not csipo) and ((myfegyv = FEGYV_M82A1) or (myfegyv = FEGYV_HPL)) then
@@ -11525,16 +11724,16 @@ begin
             setupfegyvlights(fegylit);
             setupmyfegyvprojmat;
             if not nofegyv then
-              fegyv.drawfegyv(myfegyv, felho.coverage, fegylit);
+              fegyv.drawfegyv(myfegyv_skin, felho.coverage, fegylit);
             setupprojmat;
           end
-          else
+         else
             if not (enableeffects and (opt_postproc > 0)) then
             begin
               setupfegyvlights(fegylit);
               setupmyfegyvprojmat;
               if not nofegyv then
-                fegyv.drawfegyv(myfegyv, felho.coverage, fegylit);
+                fegyv.drawfegyv(myfegyv_skin, felho.coverage, fegylit);
               setupprojmat;
             end;
     end;
@@ -11558,7 +11757,7 @@ begin
           pos:=ppl[i].pos.pos;
           //  if (abs(pos.x-MMO.mypos.pos.x)+abs(pos.z-MMO.mypos.pos.z))<0.5 then continue;
           SetupFegyvmatr(i, 0<(ppl[i].pos.state and MSTAT_CSIPO));
-          fegyv.drawfegyv(ppl[i].pls.fegyv, felho.coverage, 10);
+          fegyv.drawfegyv(ppl[i].pls.fegyvskin, felho.coverage, 10);
         end;
 
     pos:=D3DXVector3(cpx^, cpy^, cpz^);
@@ -11634,19 +11833,14 @@ begin
     g_pd3dDevice.SetFVF(D3DFVF_CUSTOMVERTEX);
     renderviz;
 
-
-
-
-
-
-
     g_pd3dDevice.SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
     g_pd3dDevice.SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
 
     renderBubbles;
 
-{$IFDEF panthihogomb}
 
+    if winter then
+    begin
     g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
     g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
     g_pd3dDevice.SetTexture(0, nil);
@@ -11662,7 +11856,8 @@ begin
     mat_world._43:=DNSVec.z;
     g_pd3dDevice.SetTransform(D3DTS_WORLD, mat_World);
     hogombmesh.DrawSubset(0);
-{$ENDIF}
+    end;
+
 
 
 
@@ -11691,7 +11886,7 @@ begin
       setupmyfegyvmatr;
       if not ((myfegyv = FEGYV_QUAD) or ((myfegyv = FEGYV_M82A1) and (not csipo))) then
         //if not (myfegyv=FEGYV_QUAD)  then
-        fegyv.drawfegyeffekt(myfegyv, lovok, mymuzzszog);
+        fegyv.drawfegyeffekt(myfegyv_skin, lovok, mymuzzszog);
       if not (((myfegyv = FEGYV_M82A1) or (myfegyv = FEGYV_HPL)) and (not csipo)) then
         setupprojmat;
 
@@ -11700,7 +11895,7 @@ begin
         begin
           pos:=ppl[i].pos.pos;
           SetupFegyvmatr(i, 0<(ppl[i].pos.state and MSTAT_CSIPO));
-          fegyv.drawfegyeffekt(ppl[i].pls.fegyv, ppl[i].pls.lo, ppl[i].pls.muzzszog);
+          fegyv.drawfegyeffekt(ppl[i].pls.fegyvskin, ppl[i].pls.lo, ppl[i].pls.muzzszog);
         end;
 
     end;
@@ -11824,7 +12019,7 @@ begin
 
       if (menu.lap = -1) then //MENÜBÕL nem kéne...
         if (G_peffect <> nil) and (opt_greyscale) then
-          if halal <> 0 then
+          if (halal <> 0) and (spectate = 0) then
           begin
             g_peffect.SetTechnique('FullScreenGreyscale');
 
@@ -11902,11 +12097,6 @@ begin
             end;
 
 
-
-
-
-
-
       g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
       g_pd3dDevice.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 
@@ -11963,7 +12153,7 @@ begin
           g_pd3dDevice.SetRenderState(D3DRS_AMBIENT, ambientszin);
           setupmyfegyvmatr;
 
-          fegyv.drawfegyv(myfegyv, felho.coverage, fegylit);
+          fegyv.drawfegyv(myfegyv_skin, felho.coverage, fegylit);
 
         end;
 
@@ -12112,7 +12302,7 @@ var
   t1:single;
 begin
   try
-    assignfile(fil2, 'data\cfg\misc.cfg');
+    assignfile(fil2, 'data/cfg/misc.cfg');
     rewrite(fil2);
   except
     exit;
@@ -12315,7 +12505,7 @@ begin
 
     menu.lap:= -1;
     if not portalstarted then begin
-      portalevent:=TPortalEvent.Create(g_pd3ddevice, true, 'data\event\');
+      portalevent:=TPortalEvent.Create(g_pd3ddevice, true, 'events/');
       portalevent.phstim:=3351;
       portalevent.phs:=3;
 
@@ -12326,10 +12516,10 @@ begin
     menufi[MI_GAZMSG].visible:=false;
     menu.tegs[0, 1].visible:=false;
 
-    assignfile(fil, 'data\cfg\name.cfg');
+    assignfile(fil, 'data/cfg/name.cfg');
     rewrite(fil);
     writeln(fil, menufi[MI_NEV].valueS);
-    writeln(fil, myfegyv);
+    writeln(fil, myfegyv_skin);
     if (lasthash = '-') then
       lasthash:=menufipass.GetPasswordMD5;
     if savepw and (menufipass.valueS <> '') then
@@ -12358,6 +12548,8 @@ begin
     exit;
   end;
 
+  myfegyv_skin := myfegyv;
+
   if menufi[MI_FEGYV].clicked then
   begin
     menufi[MI_FEGYV].clicked:=false;
@@ -12379,7 +12571,7 @@ begin
           myfegyv:=FEGYV_BM3;
         end;
       FEGYV_BM3:
-        if isEventWeapon then
+        if winter then
         begin
           myfegyv:=FEGYV_H31_G;
         end
@@ -12404,7 +12596,7 @@ begin
           myfegyv:=FEGYV_HPL;
         end;
       FEGYV_HPL:
-        if isEventWeapon then
+        if winter then
         begin
           myfegyv:=FEGYV_H31_T;
         end
@@ -12424,7 +12616,7 @@ begin
         end;
 
     end;
-
+    myfegyv_skin := myfegyv;
     menufi[MI_FEGYV].valueS:=fegyvernev(myfegyv);
 
   end;
@@ -12452,7 +12644,7 @@ begin
   if menu.items[3, 4].clicked then
   begin
     menu.items[3, 4].clicked:=false;
-    assignfile(fil, 'data\cfg\name.cfg');
+    assignfile(fil, 'data/cfg/name.cfg');
     rewrite(fil);
     writeln(fil, menufi[MI_NEV].valueS);
     writeln(fil, myfegyv);
@@ -12814,6 +13006,7 @@ begin
   if menu.lap < 0 then exit;
   csipo:=true;
   halal:=0;
+  spectate:=0;
   mapmode:=0;
   mapbol:=false;
 
@@ -13232,11 +13425,14 @@ var
   procedure evalscriptline(line:string);
   var
     args:array of string;
-    len, i, j, argnum:integer;
+    len, i, j, argnum,k,l:integer;
     tmp:string;
     v1:single;
     t:char;
-
+    vec1,vec2:TD3DXVector3;
+    a:TStringArray;
+    b:Cardinal;
+    testmuks:Tplayer;
   begin
 
     //bontsuk szavakra, és tegyük egy args arraybe
@@ -13273,7 +13469,43 @@ var
         args[i]:=FloatToStr(cpx^);
         args[i + 1]:=FloatToStr(cpy^);
         args[i + 2]:=FloatToStr(cpz^);
-
+      end
+      else
+      if args[i] = '$weapon' then
+      begin
+        case myfegyv of
+          FEGYV_MPG:args[i] := 'FEGYV_MPG';
+          FEGYV_M82A1:args[i] := 'FEGYV_M82A1';
+          FEGYV_M4A1:args[i] := 'FEGYV_M4A1';
+          FEGYV_QUAD:args[i] := 'FEGYV_QUAD';
+          FEGYV_NOOB:args[i] := 'FEGYV_NOOB';
+          FEGYV_LAW:args[i] := 'FEGYV_LAW';
+          FEGYV_X72:args[i] := 'FEGYV_X72';
+          FEGYV_MP5A3:args[i] := 'FEGYV_MP5A3';
+          FEGYV_H31_T:args[i] := 'FEGYV_H31_T';
+          FEGYV_H31_G:args[i] := 'FEGYV_H31_G';
+          FEGYV_HPL:args[i] := 'FEGYV_HPL';
+          FEGYV_BM3:args[i] := 'FEGYV_BM3';
+          FEGYV_BM3_2, FEGYV_BM3_3:;
+        end;
+      end
+      else
+      if args[i] = '$team' then
+      begin
+        case myfegyv of
+          FEGYV_MPG, FEGYV_QUAD, FEGYV_NOOB, FEGYV_X72, FEGYV_H31_T, FEGYV_HPL:args[i] := 'TECH';
+        else
+          args[i] := 'GUN';
+        end;
+      end
+      else
+      if args[i] = '%teamn' then
+      begin
+        case myfegyv of
+          FEGYV_MPG, FEGYV_QUAD, FEGYV_NOOB, FEGYV_X72, FEGYV_H31_T, FEGYV_HPL:args[i] := '0';
+        else
+          args[i] := '1';
+        end;
       end;
     end;
 
@@ -13396,8 +13628,6 @@ var
               exit;
             end;
 
-
-
         end;
       end
       else
@@ -13456,6 +13686,33 @@ var
                   tmp:=tmp + ' ' + varToString(args[i]);
 
                 addHudMessage(tmp, 255, betuszin);
+                exit;
+              end
+              else
+
+              //fenycsik
+              if (args[0] = 'lightbeam') then
+              begin
+                j:=stuffjson.GetNum(['lightbeams']);
+                i:=0;
+                for i:=0 to j - 1 do
+                begin
+                  if stuffjson.GetString(['lightbeams', i, 'name']) = args[1] then
+                  begin
+                     vec1 := D3DXVector3(stuffjson.GetFloat(['lightbeams', i, 'start', 'x']),
+                           stuffjson.GetFloat(['lightbeams', i, 'start', 'y']),
+                           stuffjson.GetFloat(['lightbeams', i, 'start', 'z']));
+                     vec2 := D3DXVector3(stuffjson.GetFloat(['lightbeams', i, 'end', 'x']),
+                           stuffjson.GetFloat(['lightbeams', i, 'end', 'y']),
+                           stuffjson.GetFloat(['lightbeams', i, 'end', 'z']));
+                     k:=stuffjson.GetInt(['lightbeams', i, 'time']);
+                     l:=stuffjson.GetInt(['lightbeams', i, 'size']);
+                     b:=stuffjson.GetInt(['lightbeams', i, 'color']);
+                     Particlesystem_add(fenycsikcreate(vec1,vec2,l,b,k));
+                     exit;
+                  end;
+                end;
+
                 exit;
               end
               else
@@ -13614,6 +13871,39 @@ var
                           end
                           else
 
+                           //fegyvskin load
+                          if (args[0] = 'fegyvskin') then
+                          begin
+                            //evalscriptline('display fegyvskin');
+                            case myfegyv of
+                              FEGYV_MPG: myfegyv_skin := fegyvskins[5];
+                              FEGYV_M82A1: myfegyv_skin := fegyvskins[1];
+                              FEGYV_M4A1: myfegyv_skin := fegyvskins[0];
+                              FEGYV_QUAD: myfegyv_skin := fegyvskins[6];
+                              FEGYV_NOOB: myfegyv_skin := fegyvskins[7];
+                              FEGYV_LAW: myfegyv_skin := fegyvskins[2];
+                              FEGYV_X72: myfegyv_skin := fegyvskins[8];
+                              FEGYV_MP5A3: myfegyv_skin := fegyvskins[3];
+                              FEGYV_H31_T: myfegyv_skin := FEGYV_H31_T;
+                              FEGYV_H31_G: myfegyv_skin := FEGYV_H31_G;
+                              FEGYV_HPL: myfegyv_skin := fegyvskins[9];
+                              FEGYV_BM3: myfegyv_skin := fegyvskins[4];
+                            end;
+                            exit;
+                          end
+                          else
+
+                          //global uzenet
+                          if (args[0] = 'chatmost') then
+                          begin
+                            tmp := '';
+                            for i:=1 to Length(args) - 1 do
+                               tmp := tmp + ' ' + varToString(args[i]);
+
+                            Multisc.Chat(tmp);
+                            exit;
+                          end
+                          else
                             //hang
                             if (args[0] = 'sound') and (Length(args) > 4) then
                             begin
@@ -13812,7 +14102,9 @@ end;   {}
 
   procedure handlewmchar(mit:wparam);
   var
-    i:integer;
+    args:array of string;
+    tmp:string;
+    len, i, j, argnum:integer;
   {$IFDEF repkedomod}
     tempd3dbuf:ID3DXBuffer;
     n:integer;
@@ -13984,13 +14276,33 @@ end;   {}
         if (' /kill' = chatmost) and (halal = 0) then
         begin
           halal:=1;
+		      spectate:=0;
           setupmymuksmatr;
           addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
         end
         else
+
+        //TODO Fix Spectate
+		  (*if (' /spectate' = chatmost) and (halal = 0) and (spectate = 0) and (not autoban) then
+			begin
+			  halal:=1;
+			  spectate:=1;
+        setupmymuksmatr;
+			end
+		  else
+		  if (' /unspectate' = chatmost) and (spectate = 1) then
+			begin
+			  halal:=1;
+			  spectate:=0;
+			  setupmymuksmatr;
+        addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
+        respawn;
+			end
+		  else *)
           if (' /realm' = Copy(chatmost, 1, 7)) and (halal = 0) then
           begin
             halal:=1;
+			      spectate:=0;
             setupmymuksmatr;
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
             Multisc.Chat(chatmost);
@@ -14001,6 +14313,7 @@ end;   {}
             if (' /norealm' = Copy(chatmost, 1, 9)) and (halal = 0) then
             begin
               halal:=1;
+			        spectate:=0;
               setupmymuksmatr;
               addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), d3dxvector3(sin(szogx) * 0.3, 0.1, cos(szogx) * 0.3), myfegyv, 10, 0, -1);
               Multisc.Chat(chatmost);
@@ -14008,6 +14321,16 @@ end;   {}
 
             end
             else
+              if (' /zerome' = Copy(chatmost, 1, 8)) and (halal = 0) then
+              begin
+                for i:=0 to high(ppl) do
+                  if (ppl[i].net.UID = 0) then ppl[i].pls.kills := 0;
+                multisc.kills:=0;
+                multisc.killscamping:=multisc.kills;
+                multisc.killswithoutdeath:=multisc.kills;
+                setupmymuksmatr;
+              end
+              else
               if (' /mute ' = Copy(chatmost, 1, 7)) and (Copy(chatmost, 8, length(chatmost)) <> '') and (halal = 0) then
               begin
                 for i:=high(multisc.chats) downto 1 do
@@ -14026,8 +14349,128 @@ end;   {}
                   unmute(lowercase(Copy(chatmost, 10, length(chatmost))));
                 end
                 else
+					if (' hogy ' = lowercase(Copy(chatmost, 1, 6))) or
+             (' hogyan ' = lowercase(Copy(chatmost, 1, 8))) or
+             (' mennyi ' = lowercase(Copy(chatmost, 1, 8))) or
+             (' miï¿½rt ' = lowercase(Copy(chatmost, 1, 7))) or
+             (' mï¿½rt ' = lowercase(Copy(chatmost, 1, 6))) or
+             (' miï¿½r ' = lowercase(Copy(chatmost, 1, 6))) or
+             (' miï¿½ ' = lowercase(Copy(chatmost, 1, 5))) or
+             (' mï¿½r ' = lowercase(Copy(chatmost, 1, 5))) or
+             (' mï¿½ ' = lowercase(Copy(chatmost, 1, 4))) or
+             (' MIï¿½RT ' = Copy(chatmost, 1, 4)) or
+             (' Mï¿½RT ' = Copy(chatmost, 1, 6)) or
+             (' MIï¿½R ' = Copy(chatmost, 1, 6)) or
+             (' MIï¿½ ' = Copy(chatmost, 1, 5)) or
+             (' Mï¿½R ' = Copy(chatmost, 1, 5)) or
+             (' Mï¿½ ' = Copy(chatmost, 1, 4)) then
+					  begin
 
+            len:=Length(chatmost);
+            j:=0;
+            SetLength(args, 1);
 
+            for i:=1 to len do begin
+              if (chatmost[i] = ' ') then
+              begin
+                if ((Length(args[j]) > 0)) then
+                begin
+                  inc(j);
+                  SetLength(args, j + 1);
+                end;
+              end
+              else
+              begin
+                tmp := stringreplace(chatmost[i],',','',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'.','',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,':','',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,';','',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'?','',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'!','',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','a',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','e',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','i',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','a',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','e',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ï¿½','i',[rfReplaceAll, rfIgnoreCase]);
+                args[j]:=args[j] + lowercase(tmp);
+              end;
+            end;
+
+            if (strInArr('realm',args)) or
+               (strInArr('realmra',args)) or
+               (strInArr('realmre',args)) or
+               (strInArr('realmot',args)) or
+               (strInArr('realmet',args)) or 
+               (strInArr('realmon',args)) or
+               (strInArr('realmnek',args)) or
+               (strInArr('realmnak',args)) or
+               (strInArr('realmt',args)) then
+            begin
+              writeChat(lang[101]);
+            end
+            else
+            if (strInArr('privat',args)) or
+               (strInArr('privi',args)) or
+               (strInArr('privit',args)) or
+               (strInArr('priv',args)) or
+               (strInArr('msg',args)) then
+            begin
+              writeChat(lang[102]);
+            end
+            else
+            if (strInArr('war',args)) or
+               (strInArr('wart',args)) or
+               (strInArr('warra',args)) or
+               (strInArr('wara',args)) or
+               (strInArr('warozni',args)) or
+               (strInArr('warozok',args)) or
+               (strInArr('waron',args)) then
+            begin
+              writeChat(lang[103]);
+            end
+            else
+            if (
+               (strInArr('nincs',args)) or
+               (strInArr('nincsen',args)) or
+               (strInArr('nem',args))
+                ) and (
+               (strInArr('fenn',args)) or
+               (strInArr('fent',args)) or
+               (strInArr('fonn',args)) or
+               (strInArr('font',args)) or
+               (strInArr('latni',args)) or
+               (strInArr('latszik',args)) or
+               (strInArr('latszanak',args)) or
+               (strInArr('latok',args)) or
+               (strInArr('latom',args)) or
+               (strInArr('lat',args))
+               ) and (
+               (strInArr('senki',args)) or
+               (strInArr('senkit',args)) or
+               (strInArr('senkinek',args)) or
+               (strInArr('senkise',args)) or
+               (strInArr('senkitse',args))
+               ) then
+            begin
+              writeChat(lang[104]);
+            end;
+						Multisc.Chat(Copy(chatmost, 1, length(chatmost)));
+
+					  end
+					  else
                   {   if (' /kbwar'=chatmost) and (halal=0) and (multisc.sock.error<>0) then
                      begin
                       war_kb:=false;
@@ -14344,6 +14787,7 @@ end;   {}
       myfegyv:=random(3) + random(2) * 128; //TODO ezt dinamikusra
     end;
 
+    myfegyv_skin:=myfegyv;
 
   end;
 
@@ -14429,7 +14873,7 @@ end;   {}
     ASPECT_RATIO:=SCwidth / SCheight;
 
 
-    if FileExists('data/video.ini') then
+    if FileExists('data/video.ini') then //TODO TO CFG
     begin
       assignfile(fil, 'data/video.ini');
       reset(fil);
@@ -14567,7 +15011,6 @@ begin //                 BEGIIIN
     end;
     anticheat1:=round(time * 86400000) - timegettime;
 
-
     addfiletochecksum('data/gui/4919.png');
     if checksum <> 524770836 then
     begin
@@ -14617,13 +15060,10 @@ begin //                 BEGIIIN
           GetDesktopWindow, 0, wc.hInstance, nil);
     end;
 
-
     randomize;
 
     azadvwove:=advwove;
     csinaljfaszapointereket;
-
-
 
 
     assignfile(logfile, 'log.txt');
@@ -14634,23 +15074,65 @@ begin //                 BEGIIIN
     writeln(logfile, 'Game started at:', formatdatetime('yyyy.mm.dd/hh:nn:ss', date + time));
 
     writeln(logfile, 'Loading lang file (LANGID=', nyelv, ')');flush(logfile);
-    addfiletochecksum('data/lang.ini');
-    loadlang('data/lang.ini', nyelv);
-    assignfile(hostfile, 'data/server.cfg');
-    reset(hostfile);
-    readln(hostfile, servername);
-{$IFDEF localhost}
-    servername:= 'localhost';
-{$ENDIF}
-    closefile(hostfile);
-    writeln(logfile, 'Server url: ', servername);flush(logfile);
+    addfiletochecksum('data/gui/lang.ini');
+    loadlang('data/gui/lang.ini', nyelv);
+
     writeln(logfile, 'Loading stuff.json');flush(logfile);
     laststate:= 'Loading stuff.json';
 
     addfiletochecksum('data/stuff.json');
     stuffjson:=TQJSON.CreateFromFile('data/stuff.json');
 
+{$IFDEF localhost}
+    servername:='localhost';
+{$ELSE}
+	  assignfile(hostfile, 'data/server.cfg');
+    reset(hostfile);
+    readln(hostfile, servername);
+    if servername = '' then
+      servername:='localhost'
+    else
+    begin
+    try
+      laststate:= 'Fetching modifier.json';
+      modifierjson:=TQJSON.CreateFromHTTP('http://'+servername+'/modifier.json');
+      if length(modifierjson.getString(['checksum'])) > 0 then  //Better way to validate?
+      begin
+        writeln(logfile, 'Fetched modifier.json');
+        modifierchecksum:=StrToInt('$' + modifierjson.getString(['checksum']));
+        writeln(logfile, 'Modifier checksum: '+inttohex(modifierchecksum, 8));
+        
+        if servername <> modifierjson.getString(['server']) then
+        begin
+          writeln(logfile, 'Servername modified');
+          servername:=modifierjson.getString(['server']);
+        end;
+        stuffjson:=modifierjson;
+      end
+      else writeln(logfile, 'Failed to fetch modifier.json');
+    except
+      writeln(logfile, 'Failed to fetch modifier.json');
+    end;
+    end;
+    
+{$ENDIF}
+    writeln(logfile, 'Server: ', servername);flush(logfile);
+
+    //WINTER
+    winter:=stuffjson.getBool(['winter']);
+
+    if winter then
+    begin
+      CMAP1_PATH := CMAP_PATH+'winter/cmap.png'; //régi terep
+      CMAP2_PATH := CMAP_PATH+'winter/cmap2.png'; //térkép
+      CMAP3_PATH := CMAP_PATH+'winter/cmap3.png'; //shader terep
+    end;
+
     perlin:=Tperlinnoise.create(stuffjson.GetInt(['random_seed']));
+
+ 	laststate:= 'Loading weapon skins';
+	loadskins;
+  	writeln(logfile, 'Weapons skins loaded');
 
     if fileexists('data/cfg/muted.cfg') then
     begin
@@ -14745,14 +15227,14 @@ begin //                 BEGIIIN
 
           //FillupMenu;
     //      crunchSettings; //tyúklife
-        writeln(logfile, 'Checksum:' + inttohex(checksum, 8));
+        //writeln(logfile, 'Checksum: ' + inttohex(checksum, 8));
 {$IFDEF nochecksumcheck}
         checksum:=datachecksum;
 {$ENDIF}
         //writeln(logfile,'Exe Checksum:'+inttohex(execheck+1,8));
        //messagebox(0,Pchar(inttohex(checksum,8)),'Checksum',0);
 
-        if (checksum <> datachecksum) {and (not canbeadmin) } then
+        if (checksum <> datachecksum) and (checksum <> modifierchecksum) {and (not canbeadmin) } then
         begin
           menufi[MI_GAZMSG].valueS:= 'Mod #' + inttohex(checksum, 8) + #13#10#13#10 + stuffjson.GetString(['modname']);
           menufi[MI_GAZMSG].visible:=true;
@@ -14762,7 +15244,7 @@ begin //                 BEGIIIN
 
         //Enter the menu message loop
         men:
-        mp3menu:= 'data\menu_music.mp3';
+        mp3menu:= 'data/gui/menu_music.mp3';
         laststate:= 'Init Menu Scene';
         initmenuScene;
         laststate:= 'Init Menu FC';
@@ -14850,13 +15332,17 @@ begin //                 BEGIIIN
         if multip2p <> nil then
           freeandnil(multisc);
 
+
+        handleskins;
+        laststate := 'init - handleskins';
+
         multisc:=TMMOServerClient.Create(servername, 25252 + random(1024),
           copy(menufi[MI_NEV].valueS, 1, 15),
           lasthash,
-          myfegyv, myfejcucc);
+          myfegyv, myfegyv_skin, myfejcucc);
 
         multisc.weather:=felho.coverage; //ehh, ennyit a csodálatos OOP-rol.
-        multip2p:=TMMOPeerToPeer.Create(multisc.myport, myfegyv);
+        multip2p:=TMMOPeerToPeer.Create(multisc.myport, myfegyv, myfegyv_skin);                         //JAEZAZ
         writeln(logfile, 'Network initialized');
 
 
@@ -15022,6 +15508,7 @@ begin //                 BEGIIIN
     if not iswindowed and lostdevice then messagebox(0, Pchar(lang[31]), Pchar(lang[30]), MB_SETFOREGROUND or MB_ICONWARNING);
     writeln(logfile, 'Game ended at:', formatdatetime('yyyy.mm.dd/hh:nn:ss', date + time));
     closefile(logfile);
+    RemoveFontResource('data/gui/eurostar.ttf');
   except
     on E:Exception do
     begin
@@ -15034,16 +15521,18 @@ begin //                 BEGIIIN
       writeln(logfile, 'Unhandled error @' + inttohex(Integer(ExceptAddr), 8) + ':' + E.Message);
       writeln(logfile, 'Last state: ', laststate);
       writeln(logfile, 'Last sound action: ', lastsoundaction);
-
+      
       writeln(logfile, 'Exception at:', formatdatetime('yyyy.mm.dd/hh:nn:ss', date + time));
       closefile(logfile);
+      RemoveFontResource('data/gui/eurostar.ttf');
     end;
   end;
 
 {$I-}
   afupquit;
   closefile(logfile);
-
+  deletefile('data/cfg/skins.cfg');
+  RemoveFontResource('data/gui/eurostar.ttf');
   exitprocess(0);
 end.
 

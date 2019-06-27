@@ -252,25 +252,22 @@ begin
     specIntensity:=0.5;
     specIntensity:=stuffjson.GetFloat(['materials', nev, 'specIntensity']);
 
-
-
-
     name:=nev;
     tex:=nil;
     if not LTFF(a_d3dDevice, 'data/textures/' + nev, tex, TEXFLAG_COLOR) then
       exit;
-    addfiletochecksum('data/textures/' + nev);
+    //addfiletochecksum('data/textures/' + nev);
 
     hmnev:=stuffjson.GetString(['materials', nev, 'heightmap']);
     if (hmnev <> '') then
-      if LTFF(a_d3dDevice, 'data/textures/' + hmnev, heightmap, TEXFLAG_COLOR) then //textúra nélkül úgysem ér semmit a PO
-        addfiletochecksum('data/textures/' + hmnev);
+       LTFF(a_d3dDevice, 'data/textures/heightmap/' + hmnev, heightmap, TEXFLAG_COLOR);//if then //textúra nélkül úgysem ér semmit a PO
+        //addfiletochecksum('data/textures/heightmap/' + hmnev);
 
     if isnormals then
     begin
       normalnev:=stuffjson.GetString(['materials', nev, 'normalmap']);
       if (normalnev <> '') then
-        if LTFF(a_d3dDevice, 'data/textures/' + normalnev, heightmap) then
+        if LTFF(a_d3dDevice, 'data/textures/normalmap/' + normalnev, heightmap, 0, nil, false) then
         begin
           normalmap:=true;
         end;
@@ -324,7 +321,7 @@ begin
 
   if fileexists(fnev + 'lm.png') then
   begin
-    addfiletochecksum(fnev + 'lm.png');
+    //addfiletochecksum(fnev + 'lm.png');
     if not LTFF(a_d3ddevice, fnev + 'lm.png', lightmap, 0, @lightmapsize) then exit;
 
     if Failed(D3DXCreateTextureFromFileEx(a_d3ddevice, PChar(fnev + 'lm.png'), lightmapsize, lightmapsize, 0, 0, D3DFMT_A8R8G8B8,
@@ -334,7 +331,7 @@ begin
   else
     if fileexists(fnev + 'lm.jpg') then
     begin
-      addfiletochecksum(fnev + 'lm.jpg');
+      //addfiletochecksum(fnev + 'lm.jpg');
       if not LTFF(a_d3ddevice, fnev + 'lm.jpg', lightmap, 0, @lightmapsize) then exit;
 
       if Failed(D3DXCreateTextureFromFileEx(a_d3ddevice, PChar(fnev + 'lm.jpg'), lightmapsize, lightmapsize, 0, 0, D3DFMT_A8R8G8B8,
@@ -343,7 +340,7 @@ begin
     end
     else
     begin
-      addfiletochecksum(fnev + 'lm.bmp');
+      //addfiletochecksum(fnev + 'lm.bmp');
       if not LTFF(a_d3ddevice, fnev + 'lm.bmp', lightmap, 0, @lightmapsize) then
       begin
         writeln(logfile, 'Could not load lightmap for: ''', fnev, '''. Please provide ''', fnev + 'lm.png''', ' Or ''', fnev + 'lm.bmp''', '.');flush(logfile);
@@ -1426,7 +1423,7 @@ label
   retry, breakall;
 begin
   inherited Create;
-  write(logfile, 'Ojjektum renderer:');flush(logfile);
+  write(logfile, 'Objektum renderer:');flush(logfile);
 
   setlength(Drawtable, length(ojjektumnevek));
 

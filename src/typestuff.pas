@@ -13,6 +13,11 @@ uses
   sha1,
   winsock2,
   qjson;
+
+const
+  PROG_VER=209071;
+  datachecksum=$CA28F13F;
+
 type
 
   array4ofbyte=array[0..3] of byte;
@@ -200,7 +205,6 @@ type
    egyebetkapott:integer;    //no minden esetben amikor egyebet kap :) Fõként a seesme miatt.
   end;}
 
-
   Tloves=record
     pos,v2:Td3DXvector3;
     kilotte:integer;
@@ -244,6 +248,7 @@ type
     nev:string;
     clan:string;
     fegyv:byte;//128 a csapat
+    fegyvskin:byte;
     fejcucc:byte;// headstuff
     fejh:TD3DXVector3;//feje hol van (headstuff)
     utsocht:string;// megejelnítendõ chat
@@ -294,6 +299,7 @@ type
     ontouchscript:string;
     onusescript:string;
     onleavescript:string;
+    vehicle:boolean;
     active:boolean;
     restart:cardinal;
   end;
@@ -530,12 +536,9 @@ type
   end;
 
   Tojjrectarr=array of Tojjrect;
-const
-  //STICKMAN
-  PROG_VER=209060;
-  datachecksum=$03BA822D;
 
 var
+  modifierchecksum:Dword;
   checksum:Dword=0;
   nyelv:integer;
 const
@@ -557,8 +560,7 @@ var
   hudInfo:string;
   hudInfoFade:word;
   hudInfoColor:longword;
-
-  isEventWeapon:boolean=false;
+  winter:boolean=false;
   unfocused:boolean;
   multisampling:integer=0;
   SCwidth:integer=800;
@@ -588,7 +590,8 @@ var
   fogstart,fogend,fogc:single;
   lightIntensity:single;
   domuzzleflash:boolean;
-  myfegyv:byte;
+  myfegyv, myfegyv_skin:byte;
+  fegyvskins:array[0..9] of byte;
   savepw:boolean;
   lasthash:string='-';
   gpukey:integer=0;
@@ -677,6 +680,20 @@ const
   FEGYV_HPL=132;
   FEGYV_H31_T=200;
 
+  //SKINEK: 10-19 m4; 140-149 mpg; kezdoertek mindig a golden
+  FEGYV_G_M4A1 = 10;
+  FEGYV_G_M82A1 = 20;
+  FEGYV_G_LAW = 30;
+  FEGYV_G_MP5A3 = 40;
+  FEGYV_G_BM3 = 50;
+
+  FEGYV_G_MPG = 140;
+  FEGYV_G_QUAD = 150;
+  FEGYV_G_NOOB = 160;
+  FEGYV_G_X72 = 170;
+  FEGYV_G_HPL = 180;
+  //SKINEK END
+
   FEGYV_NUM=10;
 
   MSTAT_MASK=15;
@@ -687,6 +704,11 @@ const
   MSTAT_BALRA=4;
   MSTAT_FUT=5;
   //  MSTAT_CHAT=6;// egyelõre nincs animáció de akár lehetne is
+  MSTAT_GREET=7;
+  MSTAT_FEGYOUP=8;       
+  MSTAT_FEGYODOWN=9;     //TODO
+  MSTAT_FEGYOFEJFOLE=10; //TODO
+  MSTAT_DAB=11;          //TODO
   MSTAT_GUGGOL=16;//flag
   MSTAT_CSIPO=32;//ez is flag
 
@@ -754,7 +776,7 @@ function wove(x,y:single):single;
 
 function scalecolor(mit:cardinal;mennyivel:single):cardinal;
 
-function LTFF(adevice:IDirect3DDevice9;nev:string;out tex:IDirect3DTexture9;flags:cardinal=0;width:PInteger=nil):boolean;
+function LTFF(adevice:IDirect3DDevice9;nev:string;out tex:IDirect3DTexture9;flags:cardinal=0;width:PInteger=nil;checksum:boolean=true):boolean;
 
 procedure randomplus(var mit:TD3DXVector3;az,scal:single);
 procedure randomplus2(var mit:TD3DXVector3;az,scal:single);
@@ -1764,7 +1786,7 @@ begin
   result:=sqrt(tavpointtri(tri,poi,pi));
 end;
 
-function LTFF(adevice:IDirect3DDevice9;nev:string;out tex:IDirect3DTexture9;flags:cardinal=0;width:PInteger=nil):boolean;//TODO ha alfás ne legyen scale
+function LTFF(adevice:IDirect3DDevice9;nev:string;out tex:IDirect3DTexture9;flags:cardinal=0;width:PInteger=nil;checksum:boolean=true):boolean;//TODO ha alfás ne legyen scale
 var
   gotolni:boolean;
   probal:byte;
@@ -1884,7 +1906,8 @@ begin
   result:=not gotolni;
 
   texturefilelist:=texturefilelist+nev+sLineBreak;
-  //addfiletochecksum(nev);
+  if checksum then
+    addfiletochecksum(nev);
 end;
 
 procedure savetexfilelist;
@@ -4660,6 +4683,24 @@ begin
   result.y := result.y + cy;
 
 end;
+ {
+function getFegyvBySkin(c:integer):byte;
+begin
+       if ((c >= 10) and (c <= 19)) or (c = 0) then result := FEGYV_M4A1
+  else if ((c >= 20) and (c <= 29)) or (c = 1) then result := FEGYV_M82A1
+  else if ((c >= 30) and (c <= 39)) or (c = 2) then result := FEGYV_LAW
+  else if ((c >= 40) and (c <= 49)) or (c = 3) then result := FEGYV_MP5A3
+  else if ((c >= 50) and (c <= 59)) or (c = 4) then result := FEGYV_BM3
+  else if ((c >= 140) and (c <= 149)) or (c = 128) then result := FEGYV_MPG
+  else if ((c >= 150) and (c <= 159)) or (c = 129) then result := FEGYV_QUAD
+  else if ((c >= 160) and (c <= 169)) or (c = 130) then result := FEGYV_NOOB
+  else if ((c >= 170) and (c <= 179)) or (c = 131) then result := FEGYV_X72
+  else if ((c >= 180) and (c <= 189)) or (c = 132) then result := FEGYV_HPL
+  else if (c = 100) then result := FEGYV_H31_G
+  else if (c = 200) then result := FEGYV_H31_T
+  else result := 0;
+end;     }
+
 
 end.
 

@@ -49,6 +49,8 @@ type
   procedure Walk(animstate:single;gun:boolean);
   procedure Runn(animstate:single;gun:boolean);
   procedure SideWalk(animstate:single;gun:boolean);
+  procedure Greet(animstate:single;gun:boolean);
+  procedure Fegyverup(animstate:single;gun:boolean);
   procedure haromszog(x1,y1,x2,y2:single; out xh,yh:single; dst1,dst2:single);
   procedure haromszog3d(a1,a2:Td3dvector; out b:Td3dVector;norm:Td3dVector; dst1:single);
   destructor Destroy;reintroduce;
@@ -116,8 +118,8 @@ begin
  g_pD3Ddevice:=dev;
  gmbk:=alapgmbk;
  kapcsk:=alapkapcsk;
-  addfiletochecksum('data\fehk.png');
-  LTFF(g_pd3ddevice,'data\fehk.png',tex);
+  //addfiletochecksum('data/textures/fehk.png');
+  LTFF(g_pd3ddevice,'data/textures/fehk.png',tex);
 
 
   if FAILED(g_pd3dDevice.CreateVertexBuffer(20000*sizeof(TCustomVertex),
@@ -417,6 +419,64 @@ haromszog3d(gmbk[9],gmbk[5],gmbk[7],jkl,0.3);
 haromszog3d(gmbk[8],gmbk[5],gmbk[6],bkl,0.3);
 end;
 
+procedure Tmuksoka.Greet(animstate:single;gun:boolean);
+var
+i:integer;
+begin
+ gmbk:=alapgmbk;
+ for i:=0 to high(gmbk) do
+begin
+ gmbk[i]:=alapgmbk[i];
+ if gun then
+  gmbk[i].y:=alapgmbk[i].y-0.5
+ else
+  gmbk[i].y:=alapgmbk[i].y;
+end;
+ //lábak
+ gmbk[0].y:=0;
+ gmbk[1].y:=0;
+
+haromszog(gmbk[0].z,gmbk[0].y,gmbk[4].z,gmbk[4].y,gmbk[2].z,gmbk[2].y,0.405,0.405);
+haromszog(gmbk[1].z,gmbk[1].y,gmbk[4].z,gmbk[4].y,gmbk[3].z,gmbk[3].y,0.405,0.405);
+ //kezek
+  gmbk[9]:=jkez;
+  gmbk[8]:=bkez;
+  gmbk[9].y := gmbk[9].y + 0.3;
+  gmbk[9].x := gmbk[9].x + 0.2;
+  haromszog3d(gmbk[9],gmbk[5],gmbk[7],jkl,0.3);
+  haromszog3d(gmbk[8],gmbk[5],gmbk[6],bkl,0.3);
+end;
+
+procedure Tmuksoka.Fegyverup(animstate:single;gun:boolean);
+var
+i:integer;
+begin
+ gmbk:=alapgmbk;
+ for i:=0 to high(gmbk) do
+begin
+ gmbk[i]:=alapgmbk[i];
+ if gun then
+  gmbk[i].y:=alapgmbk[i].y-0.5
+ else
+  gmbk[i].y:=alapgmbk[i].y;
+end;
+ //lábak
+ gmbk[0].y:=0;
+ gmbk[1].y:=0;
+
+haromszog(gmbk[0].z,gmbk[0].y,gmbk[4].z,gmbk[4].y,gmbk[2].z,gmbk[2].y,0.405,0.405);
+  haromszog(gmbk[1].z,gmbk[1].y,gmbk[4].z,gmbk[4].y,gmbk[3].z,gmbk[3].y,0.405,0.405);
+ //kezek
+  gmbk[9]:=jkez;//nem fegyveres
+  gmbk[8]:=bkez;//fegyveres
+  gmbk[9].y := gmbk[9].y + 0.3;
+  gmbk[9].x := gmbk[9].x + 0.2;
+  gmbk[8].y := gmbk[8].y + 0.3;
+  gmbk[8].x := gmbk[8].x - 0.2;
+  haromszog3d(gmbk[9],gmbk[5],gmbk[7],jkl,0.3);
+  haromszog3d(gmbk[8],gmbk[5],gmbk[6],bkl,0.3);
+end;
+
 procedure TMuksoka.Init;
 begin
 
@@ -651,11 +711,6 @@ begin
 
 end;
 
-
-
-
-
-
 g_pmuksIb.Unlock;
 g_pmuksVB.Unlock;
 
@@ -847,8 +902,8 @@ begin
    loadOBJ(stuffjson.GetString(['hats',i]));
   end;
    
-  LTFF(g_pd3ddevice,'data\hs\hstex.bmp',hstex,TEXFLAG_FIXRES);
-  addfiletochecksum('data\hs\hstex.bmp');
+  LTFF(g_pd3ddevice,'data/models/hats/hstex.bmp',hstex,TEXFLAG_FIXRES);
+  //addfiletochecksum('data/hs/hstex.bmp');
   writeln(logfile,'Loaded head items...');
   system.flush(logfile);
 
@@ -895,8 +950,8 @@ begin
  aminv:=D3DXVector3(1000,1000,1000);
  amaxv:=D3DXVector3(-1000,-1000,-1000);
 
- addfiletochecksum('data\hs\'+mit+'.obj');
- assignfile(fil,'data\hs\'+mit+'.obj');
+ addfiletochecksum('data/models/hats/'+mit+'.obj');
+ assignfile(fil,'data/models/hats/'+mit+'.obj');
 
  reset(fil);
  if eof(fil) then
