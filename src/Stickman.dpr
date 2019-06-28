@@ -10228,11 +10228,11 @@ begin
     if nohud then
       exit;
 
-    setlength(ar, length(ppl));
-    setlength(ap, length(ppl));
-    setlength(ap2, length(ppl));
-    setlength(aa, length(ppl));
-    setlength(ac, length(ppl));
+    setlength(ar, length(ppl)+1+length(AIPlrs));
+    setlength(ap, length(ppl)+1+length(AIPlrs));
+    setlength(ap2, length(ppl)+1+length(AIPlrs));
+    setlength(aa, length(ppl)+1+length(AIPlrs));
+    setlength(ac, length(ppl)+1+length(AIPlrs));
     // setlength(isTyping,length(ppl));
 
 
@@ -10305,6 +10305,36 @@ begin
       if (mapmode > 0) then aa[i]:=1;
     end;
 
+    for j:=0 to high(AIplrs) do
+    begin
+      i:=high(ppl)+1+j;
+      ar[i]:='';
+      if (AIplrs[j].pos.y<0.1) then
+      begin
+        ap[i]:=D3DXVector3zero;
+        ap2[i]:=ap[i];
+        continue;
+      end
+      else
+        vec:=AIplrs[j].pos;
+
+      if not((AIplrs[j].fegyv>=128)  xor (myfegyv>=128)) then
+      ar[i]:='BOT-'+inttostr(j+1);
+
+      if (AIplrs[j].state and MSTAT_GUGGOL)>0 then
+        vec.y:=vec.y+1.2
+      else
+        vec.y:=vec.y+1.7;
+      d3dxvec3project(ap[i],vec,viPo,matProj,matView,wo);
+      noNANinf(ap[i]);
+      ap2[i]:=ap[i];
+
+      bol:=(ap[i].z>0) and (ap[i].z<1);
+      if (tavpointpointsq(camvec,vec)<sqr(200))and bol and (not raytestlvl(camvec,vec,100,tmp)) then
+        ap2[i].y:=ap2[i].y-30;
+      noNANinf(ap2[i]);
+      aa[i]:=max(0,1-tavpointpoint(AIplrs[j].pos,camvec)/200);
+    end;
 
     if length(ar) > 0 then
       menu.DrawTextsInGame(ar, ap, ap2, aa, false);
