@@ -182,6 +182,11 @@ var
   nohud:boolean = false;
   nofegyv:boolean = false;
 
+  battle:boolean = false;
+  skirmish:boolean = false;
+  wave:integer = 0;
+  accuracy_modif:single = 0;
+
   safemode:boolean = false;
 
   portalbaugras:boolean = false;
@@ -3150,12 +3155,12 @@ begin
     if mi >= 0 then
     begin
       if ppl[mi].net.vtim > 0 then
-      pos:=ppl[mi].pos.megjpos
-    else
-      pos:=ppl[mi].pos.pos;
-    //pos:=pplpos[mi].pos;
-    D3DXMatrixRotationY(matWorld2, ppl[mi].pos.irany + d3dx_pi);
-    D3DXMatrixRotationX(matb, clipszogybajusz(ppl[mi].pos.irany2));
+        pos:=ppl[mi].pos.megjpos
+      else
+        pos:=ppl[mi].pos.pos;
+     //pos:=pplpos[mi].pos;
+     D3DXMatrixRotationY(matWorld2, ppl[mi].pos.irany + d3dx_pi);
+     D3DXMatrixRotationX(matb, clipszogybajusz(ppl[mi].pos.irany2));
 
     end
     else
@@ -3626,7 +3631,10 @@ begin
         end;
 
       i:=random(trunc(min(length(bunkerek), 4 + length(ppl) / 5)));
-      legjobbpos:=ojjektumarr[ojjind].holvannak[bunkerek[i].index];
+      if not battle then
+        legjobbpos:=ojjektumarr[ojjind].holvannak[bunkerek[i].index]
+      else
+        legjobbpos:=D3DXVector3(-476.77, 24.46, 250.14);
 
       tmp2:=stuffjson.GetFloat(['spawn_radius']);
       cpx^:=legjobbpos.x + tmp2 * (random(10000) / 5000 - 1) / 2;
@@ -7070,6 +7078,106 @@ begin
   end
    else
     bots[i].mukso.pos.pos:=D3DXVector3(0,0,0);
+end;
+
+procedure handlebattle;
+var
+i,k,alive:integer;
+
+begin
+  if battle and not multisc.warevent then
+  begin
+    if stuffjson.GetBool(['event', 'fog']) then
+    begin
+      if radius_rainy > stuffjson.GetInt(['fog', 'radius_battle']) then
+        radius_rainy:= radius_rainy - 5;
+      if radius_sunny > stuffjson.GetInt(['fog', 'radius_battle']) then
+        radius_sunny:= radius_sunny - 5;
+    end;
+
+    col_fog_rainy:= stuffjson.GetInt(['fog', 'color_battle']);
+    col_fog_sunny:= stuffjson.GetInt(['fog', 'color_battle']);
+
+    if stuffjson.GetBool(['event', 'weather']) then
+    begin
+      multisc.weather:=0;
+
+      if multisc.weather <> felho.coverage then
+      begin
+        felho.coverage:=multisc.weather;
+        felho.makenew;
+      end;
+    end;
+
+    //rise of atlantis
+    if (ojjektumhv[atlantis][0].y < 7) and stuffjson.GetBool(['event', 'atlantis_rise']) then
+    begin
+      ojjektumhv[atlantis][0].y:= ojjektumhv[atlantis][0].y + 1;
+      ojjektumarr[atlantis]:=T3dojjektum.Create('data/models/buildings/' + ojjektumnevek[atlantis], g_pd3ddevice, ojjektumscalek[atlantis].x, ojjektumscalek[atlantis].y, ojjektumhv[atlantis], ojjektumflags[atlantis]);
+
+      ojjektumhv[atlantis_b][0].y:= ojjektumhv[atlantis_b][0].y + 1;
+      ojjektumarr[atlantis_b]:=T3dojjektum.Create('data/models/buildings/' + ojjektumnevek[atlantis_b], g_pd3ddevice, ojjektumscalek[atlantis_b].x, ojjektumscalek[atlantis_b].y, ojjektumhv[atlantis_b], ojjektumflags[atlantis_b]);
+
+      for i:=0 to length(bubbles) do
+        if(bubbles[i].posx = -780) then
+          bubbles[i].posy := bubbles[i].posy + 1;
+
+      ojjektumrenderer.Destroy;
+      ojjektumrenderer:=T3DORenderer.Create(g_pd3ddevice);
+      if ojjektumhv[atlantis][0].y = 7 then remaketerrain;
+    end;
+
+    if not skirmish then
+    begin
+    //waves
+      if(high(bots) > 0) then
+      begin
+        alive:=0;
+        for k:=0 to high(bots) do
+          if(bots[k].dead = 0) then
+            alive:=alive+1;
+        if(alive = 0) then
+        begin
+          setlength(bots, 0);
+          addHudMessage(stuffjson.GetString(['event', 'wave', wave-1, 'end']), $FF0000);
+          evalscript(stuffjson.GetString(['event', 'wave', wave-1, 'next']))
+        end;
+      end;
+    //skirmish
+    end
+    else
+    begin
+      if(high(bots) > 0) then
+      begin
+        alive:=0;
+        for k:=0 to high(bots) do
+          if(bots[k].dead = 0) then
+            alive:=alive+1;
+        if(alive < stuffjson.GetInt(['event', 'skirmish_bots'])) then
+        begin
+          accuracy_modif:=accuracy_modif+5;
+          for k:=alive to stuffjson.GetInt(['event', 'skirmish_bots']) do
+          begin
+            addbot(D3DXVector3(0, 0, 0));
+            bots[high(bots)].accuracy:=bots[high(bots)].accuracy+accuracy_modif;
+          end;
+        end;
+      end
+    end
+  end
+  else //RESET
+  begin
+    if radius_rainy < stuffjson.GetInt(['fog', 'radius_rainy']) then
+      radius_rainy:= radius_rainy + 5;
+    if radius_sunny < stuffjson.GetInt(['fog', 'radius_sunny']) then
+      radius_sunny:= radius_sunny + 5;
+
+    col_fog_rainy:= stuffjson.GetInt(['fog', 'color_rainy']);
+    col_fog_sunny:= stuffjson.GetInt(['fog', 'color_sunny']);
+    setlength(bots, 0);
+    wave:=0;
+    skirmish:=false;
+  end;
 end;
 
 procedure handlefizik;
@@ -13445,6 +13553,14 @@ begin
   cmx:=round(cpx^ / pow2[lvlmin]);
   remaketerrain;
 
+  radius_rainy:= stuffjson.GetInt(['fog', 'radius_rainy']);
+  radius_sunny:= stuffjson.GetInt(['fog', 'radius_sunny']);
+
+  col_fog_rainy:= stuffjson.GetInt(['fog', 'color_rainy']);
+  col_fog_sunny:= stuffjson.GetInt(['fog', 'color_sunny']);
+  battle:=false;
+  SetLength(bots, 0);
+
   felho.coverage:=random(20);
   felho.makenew;
   matview:=identmatr;mat_world:=identmatr;matproj:=identmatr;
@@ -14075,6 +14191,17 @@ var
               end
               else
 
+              //nagy kiírás középre - piros
+              if (args[0] = 'fastinfored') then
+              begin
+                for i:=1 to Length(args) - 1 do
+                  tmp:=tmp + ' ' + varToString(args[i]);
+
+                addHudMessage(tmp, $FF0000);
+                exit;
+              end
+              else
+
               //fenycsik
               if (args[0] = 'lightbeam') then
               begin
@@ -14264,6 +14391,38 @@ var
                                 addbot(D3DXVector3(0, 0, 0))
                             else
                               addbot(D3DXVector3(0, 0, 0));
+                            exit;
+                          end
+                          else
+
+                          //wave
+                          if (args[0] = 'wave') and (Length(args) > 1)then
+                          begin
+                            wave:= strtoint(args[1]);
+                            exit;
+                          end
+                          else
+
+                          //skirmish
+                          if (args[0] = 'skirmish') then
+                          begin
+                            skirmish:= true;
+                            exit;
+                          end
+                          else
+
+                          //startbattle
+                          if (args[0] = 'startbattle') then
+                          begin
+                            battle:=true;
+                            exit;
+                          end
+                          else
+
+                          //stopbattle
+                          if (args[0] = 'stopbattle') then
+                          begin
+                            battle:=false;
                             exit;
                           end
                           else
@@ -14781,18 +14940,18 @@ end;   {}
 					if (' hogy ' = lowercase(Copy(chatmost, 1, 6))) or
              (' hogyan ' = lowercase(Copy(chatmost, 1, 8))) or
              (' mennyi ' = lowercase(Copy(chatmost, 1, 8))) or
-             (' miï¿½rt ' = lowercase(Copy(chatmost, 1, 7))) or
-             (' mï¿½rt ' = lowercase(Copy(chatmost, 1, 6))) or
-             (' miï¿½r ' = lowercase(Copy(chatmost, 1, 6))) or
-             (' miï¿½ ' = lowercase(Copy(chatmost, 1, 5))) or
-             (' mï¿½r ' = lowercase(Copy(chatmost, 1, 5))) or
-             (' mï¿½ ' = lowercase(Copy(chatmost, 1, 4))) or
-             (' MIï¿½RT ' = Copy(chatmost, 1, 4)) or
-             (' Mï¿½RT ' = Copy(chatmost, 1, 6)) or
-             (' MIï¿½R ' = Copy(chatmost, 1, 6)) or
-             (' MIï¿½ ' = Copy(chatmost, 1, 5)) or
-             (' Mï¿½R ' = Copy(chatmost, 1, 5)) or
-             (' Mï¿½ ' = Copy(chatmost, 1, 4)) then
+             (' miért ' = lowercase(Copy(chatmost, 1, 7))) or
+             (' mért ' = lowercase(Copy(chatmost, 1, 6))) or
+             (' miér ' = lowercase(Copy(chatmost, 1, 6))) or
+             (' mié ' = lowercase(Copy(chatmost, 1, 5))) or
+             (' mér ' = lowercase(Copy(chatmost, 1, 5))) or
+             (' mé ' = lowercase(Copy(chatmost, 1, 4))) or
+             (' MIÉRT ' = Copy(chatmost, 1, 4)) or
+             (' MÉRT ' = Copy(chatmost, 1, 6)) or
+             (' MIÉR ' = Copy(chatmost, 1, 6)) or
+             (' MIÉ ' = Copy(chatmost, 1, 5)) or
+             (' MÉR ' = Copy(chatmost, 1, 5)) or
+             (' MÉ ' = Copy(chatmost, 1, 4)) then
 					  begin
 
             len:=Length(chatmost);
@@ -14816,24 +14975,24 @@ end;   {}
                 tmp := stringreplace(tmp,';','',[rfReplaceAll, rfIgnoreCase]);
                 tmp := stringreplace(tmp,'?','',[rfReplaceAll, rfIgnoreCase]);
                 tmp := stringreplace(tmp,'!','',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','a',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','e',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','i',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','a',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','e',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','i',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'á','a',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'é','e',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'õ','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ö','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ó','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'û','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ü','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ú','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'í','i',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Á','a',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'É','e',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Õ','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ö','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ó','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Û','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ü','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ú','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Í','i',[rfReplaceAll, rfIgnoreCase]);
                 args[j]:=args[j] + lowercase(tmp);
               end;
             end;
@@ -15534,7 +15693,7 @@ begin //                 BEGIIIN
         writeln(logfile, 'Fetched modifier.json');
         modifierchecksum:=StrToInt('$' + modifierjson.getString(['checksum']));
         writeln(logfile, 'Modifier checksum: '+inttohex(modifierchecksum, 8));
-        
+
         if servername <> modifierjson.getString(['server']) then
         begin
           writeln(logfile, 'Servername modified');
