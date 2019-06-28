@@ -3032,6 +3032,7 @@ begin
   menu.lowermenutext:=stuffjson.GetString(['lower_menu_text']);
   if menu.lowermenutext = '' then
     menu.lowermenutext:= 'Music: Unreal Superhero III Symphonic version by Jaakko Takalo';
+  menu.lowermenutext:= menu.lowermenutext + ' BOT MOD By: VDavid003';
 
   writeln(logfile, 'Initialized buffers');flush(logfile);
   //  addfiletochecksum('data/textures/bush256.png');
