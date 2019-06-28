@@ -12270,6 +12270,16 @@ begin
             mat_bajusz._43:=mat_bajusz._43 + ppl[i].pls.fejh.z;
             fejcuccrenderer.Render(ppl[i].pls.fejcucc, mat_bajusz, false, D3DXVector3(cpx^, cpy^, cpz^));
           end;
+      for i:=0 to high(AIplrs) do
+        if tavpointpointsq(AIplrs[i].pos,campos) < sqr(50 + 20 * opt_detail) then
+        begin
+          setupmuksmatr(-i-1);
+          mat_world._41:=mat_world._41+AIplrs[i].fejh.x;
+          mat_world._42:=mat_world._42+AIplrs[i].fejh.y;
+          mat_world._43:=mat_world._43+AIplrs[i].fejh.z;
+          fejcuccrenderer.Render(AIplrs[i].fejcucc,mat_world,false,D3DXVector3(cpx^,cpy^,cpz^));
+        end;
+
       fejcuccrenderer.Flush;
 
       g_pd3dDevice.SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
