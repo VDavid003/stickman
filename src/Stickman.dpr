@@ -191,6 +191,8 @@ var
   safemode:boolean = false;
 
   //bot cuccok
+  AIplrs:array of TAIplr;
+  nfsenki:integer;
   botszam:integer;
   ojjektumWP:array of TWaypoints;
   //bot vége
@@ -7842,6 +7844,27 @@ begin
 
     // ccpx:=cpx^;ccpy:=cpy^;ccpz:=cpz^;
 
+    {$IFNDEF aiparancsok}
+    //if ((pplhgh-lanpplhgh)<2) and (lanpplhgh<1) and (botszam>0) then inc(nfsenki)
+    if botszam>0 then inc(nfsenki) //ha már bot mod, hadd maradjanak a botok ha valaki fent van
+    else
+    begin
+      if nfsenki>=500 then
+        for i:=0 to high(AIplrs) do
+          AIplrs[i].free;
+        setlength(AIplrs,0);
+        nfsenki:=0;
+      end;
+      if nfsenki>501 then nfsenki:=501;
+      if nfsenki=500 then
+      begin
+        setlength(AIplrs,botszam);
+        for i:=0 to high(AIplrs) do
+          AIplrs[i]:=TAIplr.Create(D3DXvector3(random(50),advwove(0,0)+50,random(50)),(i mod 3)+((i and $2) shr 1)*128);
+          //AIplrs[0]:=TAIplr.Create(D3DXvector3(random(50),advwove(0,0)+50,random(50)),((myfegyv xor 128) and 128)+2);
+          //AIplrs[high(AIplrs)]:=TAIplr.Create(D3DXvector3(random(50),advwove(0,0)+50,random(50)),129-myfegyv);
+      end;
+    {$ENDIF}
 
     laststate:= 'Weather';
     felho.update;
@@ -10533,6 +10556,11 @@ begin
 
     if opt_drawfps then menu.drawtext(inttostr(fps), 0, 0.92, 0.1, 1, 1, $FFFFFFFF);
 
+    if (nfsenki>200) then
+      if (nfsenki<500) then
+        menu.drawtext(lang[56]+inttostr(ceil(5-nfsenki/100)),0,0.3,1,0.4,2,$FF000000+betuszin)
+      else
+        menu.drawtext(lang[57],0.2,0.9,0.8,1,1,$70000000+betuszin);
 
     //  menu.g_pSprite.Draw(inttostr(sizeof(TD3DXAttributeRange)),nil,nil,nil,$80FFFFFF);
     //menu.drawtext(debugstr,0.2,0.8,1,1,2,$80FFFFFF);
