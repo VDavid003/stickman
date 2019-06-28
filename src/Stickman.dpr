@@ -3287,12 +3287,36 @@ begin
                 else
                   D3DXMatrixTranslation(matWorld, -0.05, 0, 0);
 
-  end else
-    MessageBox(0, 'Benttthagyott AI kód', 'Faszom', 0);
-
-  if (ppl[mi].pos.state and MSTAT_MASK) = 8 then
+    if (ppl[mi].pos.state and MSTAT_MASK) = 8 then
     D3DXMatrixTranslation(matWorld, -0.2, 0.2, -0.1);
+  end else begin
+    //MessageBox(0, 'Benttthagyott AI kód', 'Faszom', 0);
+    pos:=AIPlrs[-mi-1].pos;
+    D3DXMatrixRotationY(matWorld2,-AIPlrs[-mi-1].ir-d3dx_pi/2);
 
+    if (AIPlrs[-mi-1].fegyv = FEGYV_HPL) and not iscsip then
+      D3DXMatrixTranslation(matWorld, -0.05, 0.02, -0.11)
+    else
+      if (AIPlrs[-mi-1].fegyv = FEGYV_M82A1) and iscsip then
+        D3DXMatrixTranslation(matWorld, -0.05, -0.05, 0.15)
+      else
+        if (AIPlrs[-mi-1].fegyv = FEGYV_BM3) and iscsip then
+          D3DXMatrixTranslation(matWorld, -0.05, -0.05, 0.06)
+        else
+          if (AIPlrs[-mi-1].fegyv = FEGYV_BM3) and not iscsip then
+            D3DXMatrixTranslation(matWorld, -0.05, 0.01, -0.08)
+          else
+            if (AIPlrs[-mi-1].fegyv = FEGYV_LAW) then
+              D3DXMatrixTranslation(matWorld, 0.05, 0, 0) //valamiért furán néz ki.. valamit elfelejtettem?
+            else
+              if (AIPlrs[-mi-1].fegyv = FEGYV_H31_T) or (AIPlrs[-mi-1].fegyv = FEGYV_H31_G) then
+                D3DXMatrixTranslation(matWorld, 0.05, 0, 0)
+              else
+                if (AIPlrs[-mi-1].fegyv = FEGYV_QUAD) and (not iscsip) then
+                  D3DXMatrixTranslation(matWorld, -0.00, -0.1, -0.03)
+                else
+                  D3DXMatrixTranslation(matWorld, -0.05, 0, 0);
+    end;
   end
   else
   begin
@@ -11897,10 +11921,11 @@ procedure RenderScene;
 const
   magicfuertek:array[0..4] of byte = (0, 13, 45, 119, 181);
 var
-  i:integer;
+  i, j, fgy:integer;
   pos:TD3DVector;
   tmplw:longword;
   matViewProj:TD3DMatrix;
+  drwind:array of integer;
 begin
 
   inc(framecount); //TODO IF!
@@ -12341,8 +12366,29 @@ begin
         end;
 
     pos:=D3DXVector3(cpx^, cpy^, cpz^);
-
     laststate:= 'Rendering projectiles';
+    for j:=0 to 7 do
+    begin
+      if j<4 then
+      fgy:=j
+      else
+      fgy:=j-4+128;
+      for i:=0 to high(AIPlrs) do
+      if AIPlrs[i].fegyv=fgy then
+      if tavpointpointsq(AIplrs[i].pos,pos)<sqr({$IFDEF heavyLOD}50{$ELSE} 150{$ENDIF}) then
+      begin
+        setlength(drwind,length(drwind)+1);
+        drwind[high(drwind)]:=i;
+      end;
+    end;
+
+    for i:=0 to high(drwind) do
+    begin
+      pos:=AIPlrs[drwind[i]].pos;
+      // if (abs(pos.x-MMO.mypos.pos.x)+abs(pos.z-MMO.mypos.pos.z))<0.5 then continue;
+      SetupFegyvmatr(-drwind[i]-1,0<(AIplrs[drwind[i]].state and MSTAT_CSIPO));
+      fegyv.drawfegyv(AIPlrs[drwind[i]].fegyv, felho.coverage, fegylit);
+    end;
 
     g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
     g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
