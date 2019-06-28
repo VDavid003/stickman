@@ -3216,8 +3216,12 @@ begin
 
     end
     else
-     MessageBox(0, 'Benthagyott AI kód', 'Hiba', 0);
+    begin
+      pos:=AIPlrs[-mi-1].pos;
+      D3DXMatrixRotationY(matWorld2,-AIPlrs[-mi-1].ir-d3dx_pi/2);
+      //MessageBox(0, 'Benthagyott AI kód', 'Hiba', 0);
     end
+  end
   else
   begin
     pos:=bots[mi].mukso.pos.pos;
@@ -11005,8 +11009,13 @@ begin
   if not isbot then
   begin
   SetupMuksmatr(i);
+    if i<0 then begin
+  muks.jkez:=fegyv.jkez(afegyv, astate);
+  muks.bkez:=fegyv.bkez(afegyv, astate);
+  end else begin
   muks.jkez:=fegyv.jkez(afegyv, astate, clipszogy(ppl[i].pos.irany2));
   muks.bkez:=fegyv.bkez(afegyv, astate, clipszogy(ppl[i].pos.irany2));
+  end;
 
   case astate and MSTAT_MASK of
     0:muks.stand((astate and MSTAT_GUGGOL) > 0);
@@ -11020,7 +11029,10 @@ begin
     8:muks.Fegyverup(animstat,(astate and MSTAT_GUGGOL) > 0);
   end;
 
+  if i>=0 then begin
   ppl[i].pls.fejh:=muks.gmbk[10];
+  end else
+  AIplrs[-i-1].fejh:=muks.gmbk[10];
 
   if afegyv > 127 then
     muks.Render(techszin, mat_world, D3DXVector3(cpx^, cpy^, cpz^))
@@ -12202,7 +12214,11 @@ begin
       for i:=0 to high(bots) do
         if(bots[i].dead = 0) then
           renderbot(i);
-      
+
+      for i:=0 to high(AIplrs) do
+      begin
+        Rendermuks(-i-1, AIplrs[i].state, AIplrs[i].fegyv);
+      end;
       muks.Flush;
 
       g_pd3ddevice.SetRenderState(D3DRS_ALPHATESTENABLE, iFALSE);
