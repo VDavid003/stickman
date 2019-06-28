@@ -59,7 +59,8 @@ uses
   //ShellApi,
   Typestuff,
   Windows,
-  Winsock2
+  Winsock2,
+  StickAI
   //  StopWatch //todo kivenni
   ;
 
@@ -188,6 +189,10 @@ var
   accuracy_modif:single = 0;
 
   safemode:boolean = false;
+
+  //bot cuccok
+  ojjektumWP:array of TWaypoints;
+  //bot vége
 
   portalbaugras:boolean = false;
 
@@ -1628,6 +1633,7 @@ begin
 
   loadojjektumokfromjson;
 
+  setlength(ojjektumWP,length(ojjektumnevek));
   setlength(ojjektumarr, length(ojjektumnevek));
   for i:=0 to high(ojjektumnevek) do
   begin
@@ -2465,6 +2471,7 @@ var
   indmost:integer;
   i, j, k, x, y:integer;
   tempmesh:ID3DXMesh;
+  wpfajl:file of Twaypoint;
   tempd3dbuf:ID3DXBuffer;
   vmi:string;
   devicecaps:TD3DCaps9;
@@ -3069,6 +3076,37 @@ begin
   laststate:= 'Loading sounds';
   writeln(logfile, 'Loading sounds');flush(logfile);
   loadsounds; //  menu.DrawLoadScreen(85);-tõl 95-ig
+
+  laststate:= 'Generating WP1s (bot mod)';
+  writeln(logfile, 'Generating WP1s (bot mod)');flush(logfile);
+  writeln(logfile, 'It is normal for the game to hang here for a while./Normális ha a játék itt lefagy egy ideig.');flush(logfile);
+  for j:=0 to high(ojjektumnevek) do
+  begin
+    ojjektumWP[j]:=TWaypoints.Create;
+    if (not fileexists('data/models/buildings/'+ojjektumnevek[j]+'.wp1')) {$IFDEF reWP} or true {$ENDIF} then
+    begin
+      menu.DrawLoadScreen(90+j);//TODO fix
+      ojjektumWP[j].generate(ojjektumarr[j],(ojjektumflags[j] and OF_DONTFLATTEN)>0);
+      assignfile(wpfajl,'data/models/buildings/'+ojjektumnevek[j]+'.wp1');
+      rewrite(wpfajl);
+      for i:=0 to high(ojjektumwp[j].points) do
+        write(wpfajl,ojjektumwp[j].points[i]);
+      closefile(wpfajl);
+    end
+    else
+    begin
+      //{
+      assignfile(wpfajl,'data/models/buildings/'+ojjektumnevek[j]+'.wp1');
+      reset(wpfajl);
+      i:=0;
+      repeat
+        setlength(ojjektumwp[j].points,i+1);
+        read(wpfajl,ojjektumwp[j].points[i]);
+        inc(i);
+      until eof(wpfajl);
+      closefile(wpfajl);//}
+    end;
+  end;
 
   writeln(logfile, 'Initializing succeful');flush(logfile);
 
