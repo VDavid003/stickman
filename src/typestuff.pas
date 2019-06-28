@@ -15,8 +15,8 @@ uses
   qjson;
 
 const
-  PROG_VER=209072;
-  datachecksum=$F48CF882;
+  PROG_VER=209073;
+  datachecksum=$A219091E;
 type
 
   array4ofbyte=array[0..3] of byte;
@@ -271,6 +271,15 @@ type
     pls:Tplayerpls;
     auto:Tplayerauto;
     isTyping:boolean;
+  end;
+
+  Tbot=record
+    dead:integer;
+    mukso:TPlayer;
+    allok,lovescd,maxlovescd:Integer;//ennyi ticken at maradok ebben az akcioban
+    speed,accuracy:single;
+    front:TD3DXVector3;
+    nekimegyekepuletnek,latomjatekost,partotert:boolean;
   end;
 
 const uresplayer:Tplayer=();
@@ -545,6 +554,7 @@ type
 
 var
   modifierchecksum:Dword;
+  modifierdatachecksum:Dword;
   checksum:Dword=0;
   nyelv:integer;
 const
@@ -699,6 +709,18 @@ const
   FEGYV_G_NOOB = 160;
   FEGYV_G_X72 = 170;
   FEGYV_G_HPL = 180;
+
+  FEGYV_B_M4A1 = 11;
+  FEGYV_B_M82A1 = 21;
+  FEGYV_B_LAW = 31;
+  FEGYV_B_MP5A3 = 41;
+  FEGYV_B_BM3 = 51;
+
+  FEGYV_B_MPG = 141;
+  FEGYV_B_QUAD = 151;
+  FEGYV_B_NOOB = 161;
+  FEGYV_B_X72 = 171;
+  FEGYV_B_HPL = 181;
   //SKINEK END
 
   FEGYV_NUM=10;

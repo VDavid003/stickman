@@ -164,6 +164,7 @@ var
 
   hogombmesh:ID3DXMesh = nil;
 
+  bots:array of TBot;
   foliages:array of Tfoliage; //Növényzet
   //  foliagelevels:array of integer;
   ojjektumrenderer:T3DORenderer;
@@ -181,6 +182,11 @@ var
   nohud:boolean = false;
   nofegyv:boolean = false;
 
+  battle:boolean = false;
+  skirmish:boolean = false;
+  wave:integer = 0;
+  accuracy_modif:single = 0;
+
   safemode:boolean = false;
 
   portalbaugras:boolean = false;
@@ -196,6 +202,8 @@ var
 
   kickmsg:string;
   hardkick:boolean;
+
+  incompmodifier:boolean;
 
   portalpos:TD3DXVector3;
   portalstarted:boolean = false;
@@ -2512,6 +2520,7 @@ begin
   col_fog_rainy:=stuffjson.GetInt(['fog', 'color_rainy']);
   col_fog_sunny:=stuffjson.GetInt(['fog', 'color_sunny']);
   col_fog_water:=stuffjson.GetInt(['fog', 'color_underwater']);
+
   radius_rainy:=stuffjson.GetInt(['fog', 'radius_rainy']);
   radius_sunny:=stuffjson.GetInt(['fog', 'radius_sunny']);
 
@@ -3135,26 +3144,34 @@ begin
   g_pd3dDevice.SetTransform(D3DTS_WORLD, identmatr);
 end;
 
-procedure SetupMuksmatr(mi:integer);
+procedure SetupMuksmatr(mi:integer; isbot:boolean = FALSE);
 var
   matWorld, matWorld2, matb:TD3DMatrix;
   pos:TD3DVector;
 begin
 
-  if mi >= 0 then
+  if not isbot then
   begin
-    if ppl[mi].net.vtim > 0 then
-      pos:=ppl[mi].pos.megjpos
+    if mi >= 0 then
+    begin
+      if ppl[mi].net.vtim > 0 then
+        pos:=ppl[mi].pos.megjpos
+      else
+        pos:=ppl[mi].pos.pos;
+     //pos:=pplpos[mi].pos;
+     D3DXMatrixRotationY(matWorld2, ppl[mi].pos.irany + d3dx_pi);
+     D3DXMatrixRotationX(matb, clipszogybajusz(ppl[mi].pos.irany2));
+
+    end
     else
-      pos:=ppl[mi].pos.pos;
-    //pos:=pplpos[mi].pos;
-    D3DXMatrixRotationY(matWorld2, ppl[mi].pos.irany + d3dx_pi);
-    D3DXMatrixRotationX(matb, clipszogybajusz(ppl[mi].pos.irany2));
-
-  end
+     MessageBox(0, 'Benthagyott AI kód', 'Hiba', 0);
+    end
   else
-    MessageBox(0, 'Benthagyott AI kód', 'Hiba', 0);
-
+  begin
+    pos:=bots[mi].mukso.pos.pos;
+    D3DXMatrixRotationY(matWorld2, bots[mi].mukso.pos.irany + d3dx_pi);
+    D3DXMatrixRotationX(matb, clipszogybajusz(bots[mi].mukso.pos.irany2));
+  end;
   D3DXMatrixMultiply(matb, matb, matWorld2);
 
   D3DXMatrixTranslation(matWorld, pos.x, pos.y, pos.z);
@@ -3169,12 +3186,14 @@ begin
 end;
 
 
-procedure SetupFegyvmatr(mi:integer;iscsip:boolean);
+procedure SetupFegyvmatr(mi:integer;iscsip:boolean; isbot:boolean = FALSE);
 var
   matWorld, matWorld2, mat2:TD3DMatrix;
   pos:TD3DVector;
 begin
 
+  if not isbot then
+  begin
   if mi >= 0 then
   begin
     //pos:=pplpos[mi].pos;
@@ -3217,6 +3236,45 @@ begin
 
   if (ppl[mi].pos.state and MSTAT_MASK) = 8 then
     D3DXMatrixTranslation(matWorld, -0.2, 0.2, -0.1);
+
+  end
+  else
+  begin
+    pos := bots[mi].mukso.pos.pos;
+
+    if (bots[mi].mukso.pos.state and MSTAT_GUGGOL) > 0 then
+      pos.y:=pos.y - 0.5;
+    D3DXMatrixRotationY(matWorld2, bots[mi].mukso.pos.irany + d3dx_pi);
+    D3DXMatrixRotationX(mat2, clipszogy(bots[mi].mukso.pos.irany2));
+    D3DXMatrixMultiply(matWorld2, mat2, matWorld2);
+   {
+    if (bots[mi].mukso.pls.fegyv = FEGYV_HPL) and not iscsip then
+      D3DXMatrixTranslation(matWorld, -0.05, 0.02, -0.11)
+    else
+      if (bots[mi].mukso.pls.fegyv = FEGYV_M82A1) and iscsip then
+        D3DXMatrixTranslation(matWorld, -0.05, -0.05, 0.15)
+      else
+        if (bots[mi].mukso.pls.fegyv = FEGYV_BM3) and iscsip then
+          D3DXMatrixTranslation(matWorld, -0.05, -0.05, 0.06)
+        else
+          if (bots[mi].mukso.pls.fegyv = FEGYV_BM3) and not iscsip then
+            D3DXMatrixTranslation(matWorld, -0.05, 0.01, -0.08)
+          else
+            if (bots[mi].mukso.pls.fegyv = FEGYV_LAW) then
+              D3DXMatrixTranslation(matWorld, 0.05, 0, 0)
+            else
+              if (bots[mi].mukso.pls.fegyv = FEGYV_H31_T) or (ppl[mi].pls.fegyv = FEGYV_H31_G) then
+                D3DXMatrixTranslation(matWorld, 0.05, 0, 0)
+              else
+                if (bots[mi].mukso.pls.fegyv = FEGYV_QUAD) and (not iscsip) then
+                  D3DXMatrixTranslation(matWorld, -0.00, -0.1, -0.03)
+                else }
+                  D3DXMatrixTranslation(matWorld, -0.05, 0, 0);
+
+
+    if (bots[mi].mukso.pos.state and MSTAT_MASK) = 8 then
+      D3DXMatrixTranslation(matWorld, -0.2, 0.2, -0.1);
+  end;//ez a bot end
 
   D3DXMatrixMultiply(matWorld2, matWorld, matWorld2);
   // pos.x:=pos.x+0.05;
@@ -3573,7 +3631,10 @@ begin
         end;
 
       i:=random(trunc(min(length(bunkerek), 4 + length(ppl) / 5)));
-      legjobbpos:=ojjektumarr[ojjind].holvannak[bunkerek[i].index];
+      if not battle then
+        legjobbpos:=ojjektumarr[ojjind].holvannak[bunkerek[i].index]
+      else
+        legjobbpos:=D3DXVector3(-476.77, 24.46, 250.14);
 
       tmp2:=stuffjson.GetFloat(['spawn_radius']);
       cpx^:=legjobbpos.x + tmp2 * (random(10000) / 5000 - 1) / 2;
@@ -6002,7 +6063,6 @@ begin
   end;
 end;
 
-
 procedure AddNOOB(av1, av2:TD3DXvector3;akl:integer);
 begin
   setlength(noobproj, length(noobproj) + 1);
@@ -6820,6 +6880,305 @@ begin
    end;
 end;
 
+procedure addBot(pos:TD3DXVector3);
+var
+  bot:Tbot;
+  n,m,l:integer;
+begin
+  bot.partotert:=false;
+  n:=stuffjson.GetNum(['bots', 'dest']);
+  l:=random(n);
+  bot.front.x:=stuffjson.GetFloat(['bots', 'dest', l, 'x']) + random(30)-15;
+  bot.front.z:=stuffjson.GetFloat(['bots', 'dest', l, 'z']) + random(30)-15;
+  bot.dead:=0;
+  bot.accuracy:=stuffjson.GetFloat(['bots', 'accuracy']);
+
+  if myfegyv >= 128 then
+    bot.maxlovescd := stuffjson.GetInt(['bots', 'gun_cd'])
+  else
+    bot.maxlovescd := stuffjson.GetInt(['bots', 'tech_cd']);
+    
+  bot.allok := random(50);
+  bot.lovescd := bot.maxlovescd;
+  bot.mukso:=uresplayer;
+  bot.mukso.net.ip := 0;
+  bot.mukso.net.port := 0;
+  bot.mukso.net.UID := 0;
+  bot.mukso.pls.nev := 'BOT-1';
+  bot.mukso.pls.clan := '';
+  if myfegyv >= 128 then
+  begin
+    bot.mukso.pls.fegyv := FEGYV_M4A1;
+    bot.mukso.pls.fegyvskin := FEGYV_B_M4A1;
+  end
+  else
+  begin
+    bot.mukso.pls.fegyv := FEGYV_MPG;
+    bot.mukso.pls.fegyvskin := FEGYV_B_MPG;
+  end;
+
+  bot.mukso.pls.fejcucc := 1;
+  bot.mukso.pls.kills := 0;
+  bot.mukso.pls.autoban := FALSE;
+  bot.mukso.pls.visible := TRUE;
+  bot.mukso.pos.pos.x := stuffjson.GetFloat(['bots', 'spawn_x'])+(random(30)-15);
+  bot.mukso.pos.pos.y := stuffjson.GetFloat(['bots', 'spawn_y']);
+  bot.mukso.pos.pos.z := stuffjson.GetFloat(['bots', 'spawn_z'])+(random(30)-15);
+  m:=random(round(2.5 * d3dx_pi/3));
+  bot.mukso.pos.irany := arctan2((bot.front.x - bot.mukso.pos.pos.x),(bot.front.z - bot.mukso.pos.pos.z)) + (random(m) - (m/2));
+  //bot.mukso.pos.irany := random(30)/10;
+  bot.mukso.pos.irany2 := 0;
+  bot.mukso.pos.state := MSTAT_ALL;
+  SetLength(bots, length(bots) + 1);
+  bots[length(bots)-1] := bot;
+end;
+
+
+procedure handlebots;
+var
+  i,j,k,l,m,alive:Integer;
+  pos,pos2,tmp,targetpos:TD3DXVector3;
+  gravity,visibilityradius,hatvanfok,dst:single;
+  vankoztunkepulet,vankoztunkfold:boolean;
+begin
+  gravity:=0.2;
+  visibilityradius:=stuffjson.GetFloat(['bots', 'visibilityradius']);
+  hatvanfok:=d3dx_pi/3;
+
+  for i:=0 to high(bots) do
+  if(bots[i].dead = 0) then
+  begin
+    if (bots[i].mukso.pos.pos.y < waterlevel) and (not bots[i].partotert) then
+      bots[i].speed:=stuffjson.GetFloat(['bots', 'speed_water'])
+    else
+      bots[i].speed:=stuffjson.GetFloat(['bots', 'speed']);
+	
+    k := random(round(2.5 * hatvanfok));
+
+    if bots[i].lovescd > -1 then bots[i].lovescd := bots[i].lovescd - 1;
+    if bots[i].allok > -1 then bots[i].allok := bots[i].allok - 1;
+
+    bots[i].nekimegyekepuletnek := FALSE;
+    bots[i].latomjatekost := TRUE;//ugyis false lesz
+
+    if bots[i].partotert then
+    begin
+      if tavpointpointsq(bots[i].mukso.pos.pos, D3DXVector3(bots[i].front.x, bots[i].mukso.pos.pos.y, bots[i].front.z)) > 300 then
+      begin
+          m:=random(round(0.5 * hatvanfok));
+          bots[i].mukso.pos.irany := arctan2((bots[i].front.x - bots[i].mukso.pos.pos.x),(bots[i].front.z - bots[i].mukso.pos.pos.z)) + (random(m) - (m/2));
+          bots[i].partotert:= false;
+      end;
+      if random(75) = 1 then
+        bots[i].mukso.pos.irany := bots[i].mukso.pos.irany + (random(k)-k/2);
+      if bots[i].allok <= 0 then if random(200) = 1 then bots[i].allok := random(50);
+    end
+    else
+    begin
+      bots[i].allok := -1;
+      if tavpointpointsq(bots[i].mukso.pos.pos, D3DXVector3(bots[i].front.x, bots[i].mukso.pos.pos.y, bots[i].front.z)) > 50 then
+       bots[i].partotert:= true;
+    end;
+
+    targetpos:= D3DXVector3(
+      cpx^ + ((random(100)-50)/bots[i].accuracy),
+      cpy^+1.5 + ((random(100)-50)/bots[i].accuracy),
+      cpz^ + ((random(100)-50)/bots[i].accuracy)
+    );
+    for k:=0 to high(ojjektumnevek) do
+      for j:=0 to ojjektumarr[k].hvszam - 1 do
+      begin
+        tmp:=bots[i].mukso.pos.pos;
+        tmp.x:=tmp.x + (sin(bots[i].mukso.pos.irany) * 2);
+        tmp.y:=tmp.y + 1;
+        tmp.z:=tmp.z + (cos(bots[i].mukso.pos.irany) * 2);
+        if ojjektumarr[k].raytestbol(bots[i].mukso.pos.pos, tmp, j, COLLISION_SOLID) then
+          bots[i].nekimegyekepuletnek := TRUE
+        else
+        begin
+          pos := bots[i].mukso.pos.pos;
+          pos.y := pos.y + 1.5;
+          vankoztunkepulet := ojjektumarr[k].raytestbol(pos, targetpos, j, COLLISION_BULLET);
+          vankoztunkfold := raytestlvl(pos,targetpos,1,pos2);
+          if ((not bots[i].nekimegyekepuletnek)
+           and ((tavpointpointsq(pos,targetpos) < visibilityradius*visibilityradius))
+           and (not vankoztunkepulet)
+           and (not vankoztunkfold))
+           and (halal = 0)
+            and stuffjson.GetBool(['bots', 'attack_player'])
+            then
+              bots[i].latomjatekost := bots[i].latomjatekost AND TRUE
+            else
+              bots[i].latomjatekost := FALSE; 
+        end;
+      end;
+
+    if bots[i].latomjatekost then
+    begin
+      bots[i].allok := 1;
+      bots[i].mukso.pos.irany := arctan2((cpx^ - bots[i].mukso.pos.pos.x),(cpz^ - bots[i].mukso.pos.pos.z));
+      if bots[i].lovescd <= 0 then
+      begin
+        bots[i].lovescd := bots[i].maxlovescd;
+        setlength(multip2p.lovesek,length(multip2p.lovesek)+1);
+        multip2p.lovesek[high(multip2p.lovesek)].fegyv := bots[i].mukso.pls.fegyv;
+        multip2p.lovesek[high(multip2p.lovesek)].pos:=bots[i].mukso.pos.pos;
+        multip2p.lovesek[high(multip2p.lovesek)].pos.y:=multip2p.lovesek[high(multip2p.lovesek)].pos.y + 1.5;
+        multip2p.lovesek[high(multip2p.lovesek)].v2 := targetpos;
+        multip2p.lovesek[high(multip2p.lovesek)].kilotte:= -2;
+      end;
+    end;
+
+	  for l := 0 to high(multip2p.lovesek) do
+      if (multip2p.lovesek[l].kilotte = -1) and
+      (tavpointlinesq(bots[i].mukso.pos.pos, multip2p.lovesek[l].pos, multip2p.lovesek[l].v2, tmp, dst)) and
+       (dst < stuffjson.GetInt(['bots', 'player_accuracy'])) then
+        begin
+          bots[i].dead:=1;
+          alive:=0;
+          for k:=0 to length(bots) do
+            if(bots[k].dead = 0) then
+              alive:=alive+1;
+          addHudMessage(lang[59] + lang[106] + lang[60], $FF0000);
+          if(alive <> 0) and not skirmish then
+            addHudMessage(lang[107] +' '+ inttostr(alive)+' '+lang[108], $FF0000);
+        end;
+    if bots[i].allok <= 0 then
+    begin
+      k := random(round(2.5 * hatvanfok));
+      if bots[i].nekimegyekepuletnek then
+        if random(1) = 1 then
+          bots[i].mukso.pos.irany := bots[i].mukso.pos.irany + k
+        else
+          bots[i].mukso.pos.irany := bots[i].mukso.pos.irany - k
+      else
+      begin
+        bots[i].mukso.pos.state := MSTAT_FUT;
+        bots[i].mukso.pos.pos.x := bots[i].mukso.pos.pos.x + (sin(bots[i].mukso.pos.irany) * bots[i].speed);
+        bots[i].mukso.pos.pos.z := bots[i].mukso.pos.pos.z + (cos(bots[i].mukso.pos.irany) * bots[i].speed);
+      end
+    end else
+        bots[i].mukso.pos.state := MSTAT_ALL;
+
+    //gravitacijo
+    tmp := bots[i].mukso.pos.pos;
+    tmp.y := tmp.y - gravity;
+    if raytestlvl(bots[i].mukso.pos.pos,tmp,1,pos) then
+    begin
+        tmp := bots[i].mukso.pos.pos;
+        tmp.y := tmp.y + 0.5;
+        if raytestlvl(tmp,bots[i].mukso.pos.pos,1,pos2) then //szembe jon a domb
+          bots[i].mukso.pos.pos := pos2
+        else
+          bots[i].mukso.pos.pos := pos;
+    end
+    else
+      bots[i].mukso.pos.pos.y := bots[i].mukso.pos.pos.y - gravity;
+
+  end
+   else
+    bots[i].mukso.pos.pos:=D3DXVector3(0,0,0);
+end;
+
+procedure handlebattle;
+var
+i,k,alive:integer;
+
+begin
+  if battle and not multisc.warevent then
+  begin
+    if stuffjson.GetBool(['event', 'fog']) then
+    begin
+      if radius_rainy > stuffjson.GetInt(['fog', 'radius_battle']) then
+        radius_rainy:= radius_rainy - 5;
+      if radius_sunny > stuffjson.GetInt(['fog', 'radius_battle']) then
+        radius_sunny:= radius_sunny - 5;
+    end;
+
+    col_fog_rainy:= stuffjson.GetInt(['fog', 'color_battle']);
+    col_fog_sunny:= stuffjson.GetInt(['fog', 'color_battle']);
+
+    if stuffjson.GetBool(['event', 'weather']) then
+    begin
+      multisc.weather:=0;
+
+      if multisc.weather <> felho.coverage then
+      begin
+        felho.coverage:=multisc.weather;
+        felho.makenew;
+      end;
+    end;
+
+    //rise of atlantis
+    if (ojjektumhv[atlantis][0].y < 7) and stuffjson.GetBool(['event', 'atlantis_rise']) then
+    begin
+      ojjektumhv[atlantis][0].y:= ojjektumhv[atlantis][0].y + 1;
+      ojjektumarr[atlantis]:=T3dojjektum.Create('data/models/buildings/' + ojjektumnevek[atlantis], g_pd3ddevice, ojjektumscalek[atlantis].x, ojjektumscalek[atlantis].y, ojjektumhv[atlantis], ojjektumflags[atlantis]);
+
+      ojjektumhv[atlantis_b][0].y:= ojjektumhv[atlantis_b][0].y + 1;
+      ojjektumarr[atlantis_b]:=T3dojjektum.Create('data/models/buildings/' + ojjektumnevek[atlantis_b], g_pd3ddevice, ojjektumscalek[atlantis_b].x, ojjektumscalek[atlantis_b].y, ojjektumhv[atlantis_b], ojjektumflags[atlantis_b]);
+
+      for i:=0 to length(bubbles) do
+        if(bubbles[i].posx = -780) then
+          bubbles[i].posy := bubbles[i].posy + 1;
+
+      ojjektumrenderer.Destroy;
+      ojjektumrenderer:=T3DORenderer.Create(g_pd3ddevice);
+      if ojjektumhv[atlantis][0].y = 7 then remaketerrain;
+    end;
+
+    if not skirmish then
+    begin
+    //waves
+      if(high(bots) > 0) then
+      begin
+        alive:=0;
+        for k:=0 to high(bots) do
+          if(bots[k].dead = 0) then
+            alive:=alive+1;
+        if(alive = 0) then
+        begin
+          setlength(bots, 0);
+          addHudMessage(stuffjson.GetString(['event', 'wave', wave-1, 'end']), $FF0000);
+          evalscript(stuffjson.GetString(['event', 'wave', wave-1, 'next']))
+        end;
+      end;
+    //skirmish
+    end
+    else
+    begin
+      if(high(bots) > 0) then
+      begin
+        alive:=0;
+        for k:=0 to high(bots) do
+          if(bots[k].dead = 0) then
+            alive:=alive+1;
+        if(alive < stuffjson.GetInt(['event', 'skirmish_bots'])) then
+        begin
+          accuracy_modif:=accuracy_modif+5;
+          for k:=alive to stuffjson.GetInt(['event', 'skirmish_bots']) do
+          begin
+            addbot(D3DXVector3(0, 0, 0));
+            bots[high(bots)].accuracy:=bots[high(bots)].accuracy+accuracy_modif;
+          end;
+        end;
+      end
+    end
+  end
+  else //RESET
+  begin
+    if radius_rainy < stuffjson.GetInt(['fog', 'radius_rainy']) then
+      radius_rainy:= radius_rainy + 5;
+    if radius_sunny < stuffjson.GetInt(['fog', 'radius_sunny']) then
+      radius_sunny:= radius_sunny + 5;
+
+    col_fog_rainy:= stuffjson.GetInt(['fog', 'color_rainy']);
+    col_fog_sunny:= stuffjson.GetInt(['fog', 'color_sunny']);
+    setlength(bots, 0);
+    wave:=0;
+    skirmish:=false;
+  end;
+end;
 
 procedure handlefizik;
 var
@@ -8048,7 +8407,6 @@ begin
 end;
 {$ENDIF}
 
-
 procedure handlefizikLite;
 var
   korlat:integer;
@@ -9261,8 +9619,12 @@ begin
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), tmp, myfegyv, love, 0, aloves.kilotte, true)
           else
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), tmp, myfegyv, love, 0, aloves.kilotte);
-          addHudMessage(lang[65] + ' ' + ppl[aloves.kilotte].pls.nev, betuszin);
+          if aloves.kilotte >= 0 then
+            addHudMessage(lang[65] + ' ' + ppl[aloves.kilotte].pls.nev, betuszin)
+          else
+            addHudMessage(lang[65] + ' ' + lang[105], betuszin);
           hudMessages[low(hudMessages)].fade:=200;
+
           meghaltam:=true;
         end;
 {$ENDIF}
@@ -10559,11 +10921,11 @@ begin
 
 end;
 
-
-
-procedure rendermuks(i:integer;astate, afegyv:byte);
+procedure rendermuks(i:integer;astate, afegyv:byte; isbot:boolean = FALSE);
 begin
 
+  if not isbot then
+  begin
   SetupMuksmatr(i);
   muks.jkez:=fegyv.jkez(afegyv, astate, clipszogy(ppl[i].pos.irany2));
   muks.bkez:=fegyv.bkez(afegyv, astate, clipszogy(ppl[i].pos.irany2));
@@ -10586,6 +10948,43 @@ begin
     muks.Render(techszin, mat_world, D3DXVector3(cpx^, cpy^, cpz^))
   else
     muks.Render(gunszin, mat_world, D3DXVector3(cpx^, cpy^, cpz^));
+
+  end
+  else
+  begin
+    SetupMuksmatr(i, TRUE);
+    muks.jkez:=fegyv.jkez(afegyv, astate, clipszogy(bots[i].mukso.pos.irany2));
+    muks.bkez:=fegyv.bkez(afegyv, astate, clipszogy(bots[i].mukso.pos.irany2));
+
+    case astate and MSTAT_MASK of
+      0:muks.stand((astate and MSTAT_GUGGOL) > 0);
+      1:muks.Walk(animstat, (astate and MSTAT_GUGGOL) > 0);
+      2:muks.Walk(1 - animstat, (astate and MSTAT_GUGGOL) > 0);
+      3:muks.SideWalk(animstat, (astate and MSTAT_GUGGOL) > 0);
+      4:muks.SideWalk(1 - animstat, (astate and MSTAT_GUGGOL) > 0);
+      5:muks.Runn(animstat, true);
+      //6:muks.Chat(animstate,(astate and MSTAT_GUGGOL) > 0);
+      7:muks.Greet(animstat,(astate and MSTAT_GUGGOL) > 0);
+      8:muks.Fegyverup(animstat,(astate and MSTAT_GUGGOL) > 0);
+    end;
+
+    bots[i].mukso.pls.fejh:=muks.gmbk[10];
+
+    if afegyv > 127 then
+      muks.Render(techszin, mat_world, D3DXVector3(cpx^, cpy^, cpz^))
+    else
+      muks.Render(gunszin, mat_world, D3DXVector3(cpx^, cpy^, cpz^));
+  end
+end;
+
+procedure renderbot(i:Integer);
+begin
+    if bots[i].mukso.pls.autoban then bots[i].mukso.pls.visible:=false;
+    if bots[i].mukso.pls.visible then
+      if tavpointpointsq(bots[i].mukso.pos.pos, campos) < sqr(500) then
+      begin
+        rendermuks(i, bots[i].mukso.pos.state, bots[i].mukso.pls.fegyv, TRUE); //nem skin mert ez a babu szine
+      end;
 end;
 
 procedure rendermykez;
@@ -11722,6 +12121,10 @@ begin
             Rendermuks(i, ppl[i].pos.state, ppl[i].pls.fegyv); //nem skin mert ez a babu szine
           end;
       end;
+      for i:=0 to high(bots) do
+        if(bots[i].dead = 0) then
+          renderbot(i);
+      
       muks.Flush;
 
       g_pd3ddevice.SetRenderState(D3DRS_ALPHATESTENABLE, iFALSE);
@@ -11832,6 +12235,15 @@ begin
           //  if (abs(pos.x-MMO.mypos.pos.x)+abs(pos.z-MMO.mypos.pos.z))<0.5 then continue;
           SetupFegyvmatr(i, 0<(ppl[i].pos.state and MSTAT_CSIPO));
           fegyv.drawfegyv(ppl[i].pls.fegyvskin, felho.coverage, 10);
+        end;
+    for i:=0 to high(bots) do  //ez valamiert nem mukodik bot renderben
+      if bots[i].mukso.pls.visible then
+        if tavpointpointsq(bots[i].mukso.pos.pos, campos) < sqr(150) then
+        begin
+          pos:=bots[i].mukso.pos.pos;
+          //  if (abs(pos.x-MMO.mypos.pos.x)+abs(pos.z-MMO.mypos.pos.z))<0.5 then continue;
+          SetupFegyvmatr(i, 0<(bots[i].mukso.pos.state and MSTAT_CSIPO),TRUE);
+          fegyv.drawfegyv(bots[i].mukso.pls.fegyvskin, felho.coverage, 10);
         end;
 
     pos:=D3DXVector3(cpx^, cpy^, cpz^);
@@ -12355,6 +12767,10 @@ begin
   profile_mecha:=(MSecsPerSec * (profile_stop - profile_start)) div profile_frequency;
   QueryPerformanceCounter(profile_start);
 {$ENDIF}
+
+  handlebots;
+
+  handlebattle;
 
   RenderScene;
   RenderPostprocess;
@@ -13137,10 +13553,17 @@ begin
   cmx:=round(cpx^ / pow2[lvlmin]);
   remaketerrain;
 
+  radius_rainy:= stuffjson.GetInt(['fog', 'radius_rainy']);
+  radius_sunny:= stuffjson.GetInt(['fog', 'radius_sunny']);
+
+  col_fog_rainy:= stuffjson.GetInt(['fog', 'color_rainy']);
+  col_fog_sunny:= stuffjson.GetInt(['fog', 'color_sunny']);
+  battle:=false;
+  SetLength(bots, 0);
+
   felho.coverage:=random(20);
   felho.makenew;
   matview:=identmatr;mat_world:=identmatr;matproj:=identmatr;
-
 
 end;
 
@@ -13768,6 +14191,17 @@ var
               end
               else
 
+              //nagy kiírás középre - piros
+              if (args[0] = 'fastinfored') then
+              begin
+                for i:=1 to Length(args) - 1 do
+                  tmp:=tmp + ' ' + varToString(args[i]);
+
+                addHudMessage(tmp, $FF0000);
+                exit;
+              end
+              else
+
               //fenycsik
               if (args[0] = 'lightbeam') then
               begin
@@ -13945,6 +14379,50 @@ var
                           if (args[0] = 'explode') then
                           begin
                             AddLAW(D3DXVector3Zero, computevecs(copy(args, 1, argnum - 1)), -1);
+                            exit;
+                          end
+                          else
+
+                          //addbot
+                          if (args[0] = 'addbot') then
+                          begin
+                            if (Length(args) > 1) then
+                              for i:=0 to strtoint(args[1]) - 1 do
+                                addbot(D3DXVector3(0, 0, 0))
+                            else
+                              addbot(D3DXVector3(0, 0, 0));
+                            exit;
+                          end
+                          else
+
+                          //wave
+                          if (args[0] = 'wave') and (Length(args) > 1)then
+                          begin
+                            wave:= strtoint(args[1]);
+                            exit;
+                          end
+                          else
+
+                          //skirmish
+                          if (args[0] = 'skirmish') then
+                          begin
+                            skirmish:= true;
+                            exit;
+                          end
+                          else
+
+                          //startbattle
+                          if (args[0] = 'startbattle') then
+                          begin
+                            battle:=true;
+                            exit;
+                          end
+                          else
+
+                          //stopbattle
+                          if (args[0] = 'stopbattle') then
+                          begin
+                            battle:=false;
                             exit;
                           end
                           else
@@ -14462,18 +14940,18 @@ end;   {}
 					if (' hogy ' = lowercase(Copy(chatmost, 1, 6))) or
              (' hogyan ' = lowercase(Copy(chatmost, 1, 8))) or
              (' mennyi ' = lowercase(Copy(chatmost, 1, 8))) or
-             (' miï¿½rt ' = lowercase(Copy(chatmost, 1, 7))) or
-             (' mï¿½rt ' = lowercase(Copy(chatmost, 1, 6))) or
-             (' miï¿½r ' = lowercase(Copy(chatmost, 1, 6))) or
-             (' miï¿½ ' = lowercase(Copy(chatmost, 1, 5))) or
-             (' mï¿½r ' = lowercase(Copy(chatmost, 1, 5))) or
-             (' mï¿½ ' = lowercase(Copy(chatmost, 1, 4))) or
-             (' MIï¿½RT ' = Copy(chatmost, 1, 4)) or
-             (' Mï¿½RT ' = Copy(chatmost, 1, 6)) or
-             (' MIï¿½R ' = Copy(chatmost, 1, 6)) or
-             (' MIï¿½ ' = Copy(chatmost, 1, 5)) or
-             (' Mï¿½R ' = Copy(chatmost, 1, 5)) or
-             (' Mï¿½ ' = Copy(chatmost, 1, 4)) then
+             (' miért ' = lowercase(Copy(chatmost, 1, 7))) or
+             (' mért ' = lowercase(Copy(chatmost, 1, 6))) or
+             (' miér ' = lowercase(Copy(chatmost, 1, 6))) or
+             (' mié ' = lowercase(Copy(chatmost, 1, 5))) or
+             (' mér ' = lowercase(Copy(chatmost, 1, 5))) or
+             (' mé ' = lowercase(Copy(chatmost, 1, 4))) or
+             (' MIÉRT ' = Copy(chatmost, 1, 4)) or
+             (' MÉRT ' = Copy(chatmost, 1, 6)) or
+             (' MIÉR ' = Copy(chatmost, 1, 6)) or
+             (' MIÉ ' = Copy(chatmost, 1, 5)) or
+             (' MÉR ' = Copy(chatmost, 1, 5)) or
+             (' MÉ ' = Copy(chatmost, 1, 4)) then
 					  begin
 
             len:=Length(chatmost);
@@ -14497,24 +14975,24 @@ end;   {}
                 tmp := stringreplace(tmp,';','',[rfReplaceAll, rfIgnoreCase]);
                 tmp := stringreplace(tmp,'?','',[rfReplaceAll, rfIgnoreCase]);
                 tmp := stringreplace(tmp,'!','',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','a',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','e',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','i',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','a',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','e',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','o',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','u',[rfReplaceAll, rfIgnoreCase]);
-                tmp := stringreplace(tmp,'ï¿½','i',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'á','a',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'é','e',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'õ','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ö','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ó','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'û','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ü','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'ú','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'í','i',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Á','a',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'É','e',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Õ','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ö','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ó','o',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Û','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ü','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Ú','u',[rfReplaceAll, rfIgnoreCase]);
+                tmp := stringreplace(tmp,'Í','i',[rfReplaceAll, rfIgnoreCase]);
                 args[j]:=args[j] + lowercase(tmp);
               end;
             end;
@@ -15192,7 +15670,8 @@ begin //                 BEGIIIN
 
     addfiletochecksum('data/stuff.json');
     stuffjson:=TQJSON.CreateFromFile('data/stuff.json');
-
+    incompmodifier:=false;
+    
 {$IFDEF localhost}
     servername:='localhost';
 {$ELSE}
@@ -15202,16 +15681,19 @@ begin //                 BEGIIIN
     if servername = '' then
       servername:='localhost'
     else
-    begin
+    if stuffjson.GetString(['modname']) = 'Official' then //if not modded
     try
       laststate:= 'Fetching modifier.json';
+      writeln(logfile, 'Fetching modifier.json');
       modifierjson:=TQJSON.CreateFromHTTP('http://'+servername+'/modifier.json');
-      if length(modifierjson.getString(['checksum'])) > 0 then  //Better way to validate?
+      modifierdatachecksum:=StrToInt('$' + modifierjson.getString(['datachecksum']));
+      if datachecksum = modifierdatachecksum then //Don't load incompatible modifier
       begin
+
         writeln(logfile, 'Fetched modifier.json');
         modifierchecksum:=StrToInt('$' + modifierjson.getString(['checksum']));
         writeln(logfile, 'Modifier checksum: '+inttohex(modifierchecksum, 8));
-        
+
         if servername <> modifierjson.getString(['server']) then
         begin
           writeln(logfile, 'Servername modified');
@@ -15219,12 +15701,15 @@ begin //                 BEGIIIN
         end;
         stuffjson:=modifierjson;
       end
-      else writeln(logfile, 'Failed to fetch modifier.json');
+      else
+      begin
+      incompmodifier:=true;
+      writeln(logfile, 'Incompatible modifier!');
+      end;
     except
       writeln(logfile, 'Failed to fetch modifier.json');
     end;
-    end;
-    
+
 {$ENDIF}
     writeln(logfile, 'Server: ', servername);flush(logfile);
 
@@ -15344,7 +15829,16 @@ begin //                 BEGIIIN
         //writeln(logfile,'Exe Checksum:'+inttohex(execheck+1,8));
        //messagebox(0,Pchar(inttohex(checksum,8)),'Checksum',0);
 
-        if (checksum <> datachecksum) and (checksum <> modifierchecksum) {and (not canbeadmin) } then
+        if incompmodifier then
+        begin
+          menufi[MI_GAZMSG].valueS:= lang[63];
+          menufi[MI_GAZMSG].visible:=true;
+          menu.tegs[0, 1].visible:=true;
+        end
+        else
+        if (checksum <> datachecksum)//True mod
+        and (checksum <> modifierchecksum)//Modified modifier? tinkered or outdated(can't be -> incompatible)
+        {and (not canbeadmin) } then
         begin
           menufi[MI_GAZMSG].valueS:= 'Mod #' + inttohex(checksum, 8) + #13#10#13#10 + stuffjson.GetString(['modname']);
           menufi[MI_GAZMSG].visible:=true;
