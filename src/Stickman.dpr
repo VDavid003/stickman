@@ -16057,6 +16057,12 @@ begin //                 BEGIIIN
         if not iswindowed then
           AFstart;
 
+        //AI reinit
+        for i:=0 to high(AIplrs) do
+          AIplrs[i].free;
+        setlength(AIplrs,0);
+        nfsenki:=0;
+
         multisc.opt_nochat:=opt_nochat;
 
 {$IFDEF profiler}
