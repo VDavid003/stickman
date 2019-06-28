@@ -7295,104 +7295,104 @@ begin
   repeat
     laststate:='Handling AI';
     if aimode=0 then
-  for I:=0 to high(AIPlrs) do
-  if AIPlrs[i].halal=0 then
-  begin
-   norm:=D3DXVector3(cpx^,cpy^,cpz^);
-   {$IFNDEF AIparancsok}
-   if tavpointpointsq(AIPlrs[i].pos,norm)>sqr(300) then
-   begin
-    AIPlrs[i].halal:=1;
-    AIPlrs[i].pos:=D3DXVector3zero;
-    AIPlrs[i].celmegvan:=true;
-   end;
-   {$ENDIF}
-   if halal>0 then norm.y:=0;
-   if gugg then norm.y:=norm.y-0.5;
+      for I:=0 to high(AIPlrs) do
+        if AIPlrs[i].halal=0 then
+        begin
+          norm:=D3DXVector3(cpx^,cpy^,cpz^);
+          {$IFNDEF AIparancsok}
+          if tavpointpointsq(AIPlrs[i].pos,norm)>sqr(300) then
+          begin
+            AIPlrs[i].halal:=1;
+            AIPlrs[i].pos:=D3DXVector3zero;
+            AIPlrs[i].celmegvan:=true;
+          end;
+          {$ENDIF}
+          if halal>0 then norm.y:=0;
+          if gugg then norm.y:=norm.y-0.5;
 
-   {$IFDEF AIparancsok} norm:=D3DXVector3zero; {$ENDIF}
-   {$IFDEF repkedomod} norm:=D3DXVector3zero; {$ENDIF}
-                     //6 bit = 64 vagyis félmásodperc
-   if (hanyszor and $3F)=(i and $3F) then AIplrs[i].lass(norm,myfegyv>=128,false ,AIplrs,ojjektumarr,advwove);
+          {$IFDEF AIparancsok} norm:=D3DXVector3zero; {$ENDIF}
+          {$IFDEF repkedomod} norm:=D3DXVector3zero; {$ENDIF}
+          //6 bit = 64 vagyis félmásodperc
+          if (hanyszor and $3F)=(i and $3F) then AIplrs[i].lass(norm,myfegyv>=128,false ,AIplrs,ojjektumarr,advwove);
 
-   bol:=(hanyszor and $7F)=(i and $7F);
+          bol:=(hanyszor and $7F)=(i and $7F);
 
-   if high(AIplrs[i].waypointok)>=0 then
-   bol:=bol and (tavpointpointsq(AIplrs[i].waypointok[high(AIplrs[i].waypointok)],AIplrs[i].pos)>sqr(2))
-   else
-   bol:=false;                //9 bit
-   bol:=bol or ((hanyszor and $1FF)=((i*5) and $1FF));
-  {$IFDEF AIparancsok} bol:=false; {$ENDIF}
-   if  bol then
-    AIplrs[i].makeWPs(ojjektumarr,ojjektumWP);
+          if high(AIplrs[i].waypointok)>=0 then
+            bol:=bol and (tavpointpointsq(AIplrs[i].waypointok[high(AIplrs[i].waypointok)],AIplrs[i].pos)>sqr(2))
+          else
+            bol:=false;                //9 bit
+          bol:=bol or ((hanyszor and $1FF)=((i*5) and $1FF));
+          {$IFDEF AIparancsok} bol:=false; {$ENDIF}
+          if  bol then
+            AIplrs[i].makeWPs(ojjektumarr,ojjektumWP);
 
 
-   Aiplrs[i].dosomething;
-   {$IFDEF AIparancsok}
-   if random(50)=0 then AIPlrs[i].celmegs:=false; {$ENDIF}
-   if AIPlrs[i].celmegvan then
-   begin
-   {$IFNDEF AIparancsok} cnt:=0;
-    repeat
+          Aiplrs[i].dosomething;
+          {$IFDEF AIparancsok}
+          if random(50)=0 then AIPlrs[i].celmegs:=false; {$ENDIF}
+          if AIPlrs[i].celmegvan then
+          begin
+            {$IFNDEF AIparancsok} cnt:=0;
+          repeat
 
-     h1:=random(length(ojjektumnevek));
-     if ojjektumarr[h1].nincsrad then continue;
-     h2:=random(ojjektumarr[h1].hvszam);
-     h3:=random(length(OjjektumWP[h1].points));
-     d3dxvec3add(tmp,ojjektumarr[h1].holvannak[h2],ojjektumWP[h1].points[h3].hol);
+            h1:=random(length(ojjektumnevek));
+            if ojjektumarr[h1].nincsrad then continue;
+            h2:=random(ojjektumarr[h1].hvszam);
+            h3:=random(length(OjjektumWP[h1].points));
+            d3dxvec3add(tmp,ojjektumarr[h1].holvannak[h2],ojjektumWP[h1].points[h3].hol);
 
-     inc(cnt);
-    until (tavpointpointsq(AIPlrs[i].pos,tmp)<sqr(300)) or (cnt>10);
+            inc(cnt);
+          until (tavpointpointsq(AIPlrs[i].pos,tmp)<sqr(300)) or (cnt>10);
 
-    hova:=tmp;
+          hova:=tmp;
 
-    hova.y:=hova.y-0.4;
-    {$ELSE}
-    mx:=sqr(1000);
-    mxh:=random(length(AIplrs));
-     for j:=0 to 10 do
-     begin
-      rnd:=random(length(AIplrs));
-      if (AIplrs[rnd].fegyv xor Aiplrs[i].fegyv)>=128 then
-      begin
-       tmp2:=tavpointpointsq(Aiplrs[i].pos,Aiplrs[rnd].pos);
-       if tmp2<mx then begin mx:=tmp2; mxh:=rnd;end;
+          hova.y:=hova.y-0.4;
+          {$ELSE}
+          mx:=sqr(1000);
+          mxh:=random(length(AIplrs));
+          for j:=0 to 10 do
+          begin
+            rnd:=random(length(AIplrs));
+            if (AIplrs[rnd].fegyv xor Aiplrs[i].fegyv)>=128 then
+            begin
+              tmp2:=tavpointpointsq(Aiplrs[i].pos,Aiplrs[rnd].pos);
+              if tmp2<mx then begin mx:=tmp2; mxh:=rnd;end;
+            end;
+          end;
+        hova:=AIplrs[mxh].pos;
+        {$ENDIF}
+        Aiplrs[i].celmegvan:=false;
+        Aiplrs[i].cel:=hova;
+        Aiplrs[i].celmegs:=false;
       end;
-     end;
-     hova:=AIplrs[mxh].pos;
-    {$ENDIF}
-    Aiplrs[i].celmegvan:=false;
-    Aiplrs[i].cel:=hova;
-    Aiplrs[i].celmegs:=false;
-   end;
-  end
-  else
-  with AIplrs[i] do
-  begin
+    end
+    else
+    with AIplrs[i] do
+    begin
 
-   halal:=halal+0.01;
-   {$IFDEF AIparancsok}
-   halal:=1;
-   pos:=D3DXVector3zero;{$ENDIF}
-   if halal>5 then
-   begin
-    cnt:=0;
-    repeat
-     repeat
-      rnd:=random(ojjektumarr[0].hvszam);
-      inc(cnt);
-     until (tavpointpointsq(ojjektumarr[0].holvannak[rnd],campos)<sqr(300)) or (cnt>10);
-    until ojjektumarr[0].holvannak[rnd].y<50;
+      halal:=halal+0.01;
+      {$IFDEF AIparancsok}
+      halal:=1;
+      pos:=D3DXVector3zero;{$ENDIF}
+      if halal>5 then
+      begin
+        cnt:=0;
+        repeat
+          repeat
+            rnd:=random(ojjektumarr[0].hvszam);
+            inc(cnt);
+          until (tavpointpointsq(ojjektumarr[0].holvannak[rnd],campos)<sqr(300)) or (cnt>10);
+        until ojjektumarr[0].holvannak[rnd].y<50;
 
-    pos.x:=ojjektumarr[0].holvannak[rnd].x+ojjektumarr[0].rad*(random(10000)/5000-1)/2;
-    pos.y:=ojjektumarr[0].holvannak[rnd].y+ojjektumarr[0].rad+2;
-    pos.z:=ojjektumarr[0].holvannak[rnd].z+ojjektumarr[0].rad*(random(10000)/5000-1)/2;
-    vpos:=pos;
-    halal:=0;
-   end;
-  end;
+        pos.x:=ojjektumarr[0].holvannak[rnd].x+ojjektumarr[0].rad*(random(10000)/5000-1)/2;
+        pos.y:=ojjektumarr[0].holvannak[rnd].y+ojjektumarr[0].rad+2;
+        pos.z:=ojjektumarr[0].holvannak[rnd].z+ojjektumarr[0].rad*(random(10000)/5000-1)/2;
+        vpos:=pos;
+        halal:=0;
+      end;
+    end;
 
-  //AIlojon;
+    //AIlojon;
     inc(hanyszor);
     // if playrocks>1 then playrocks:=1;
     if vizben < 0 then vizben:=0;
