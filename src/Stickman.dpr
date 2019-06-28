@@ -191,6 +191,7 @@ var
   safemode:boolean = false;
 
   //bot cuccok
+  botszam:integer;
   ojjektumWP:array of TWaypoints;
   //bot vége
 
@@ -2444,6 +2445,16 @@ begin
   else
   begin
     setDefaults;
+  end;
+
+  if fileexists('data/cfg/bots.cfg') then
+  begin
+    try
+      assignfile(fil2, 'data/cfg/bots.cfg');
+      reset(fil2);
+      read(fil2, menufi[MI_BOT_NUM].elx);
+    except
+    end
   end;
 
   if (g_peffect <> nil) then
@@ -12831,6 +12842,18 @@ var
   t1:single;
 begin
   try
+    assignfile(fil2, 'data/cfg/bots.cfg');
+    rewrite(fil2);
+  except
+    exit;
+  end;
+  try
+    write(fil2, menufi[MI_BOT_NUM].elx);
+  finally
+    closefile(fil2);
+  end;
+
+  try
     assignfile(fil2, 'data/cfg/misc.cfg');
     rewrite(fil2);
   except
@@ -12997,6 +13020,9 @@ begin
   //mouse 4:txt, 5:csusz; bot:7:txt; 8:csusz
   mousesens:=power(10, menufi[MI_MOUSE_SENS].elx * 2 - 1);
   menufi[MI_MOUSE_SENS_LAB].valueS:=floattostrf(mousesens, fffixed, 6, 2);
+
+  botszam:=round(menufi[MI_BOT_NUM].elx*50);
+  menufi[MI_BOT_NUM_LAB].valueS:=inttostr(botszam);
 
   savemenumisc;
   for i:=0 to MENULAP_MAX do
@@ -15229,19 +15255,23 @@ end;   {}
     //Menü lap 2 --- Options
     menu.Addteg(jobbstart, 0.3, jobbveg, 0.8, 2);
 
-    sor:=0.08;
-    fent:=0.35;
+    sor:=0.07;
+    fent:=0.3;
     hanyadik:=0;
     lap:=2;
-    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[12], true);menufi[MI_GRAPHICS]:=menu.items[lap, 3];
+    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1),1,2,'',false);         menufi[MI_BOT_NUM_LAB]:=menu.items[lap,3];
     inc(hanyadik);
-    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[87], true);menufi[MI_MOREGRAPHICS]:=menu.items[lap, 4];
+    menu.Addcsuszka(jobbstart+0.01, fent + sor * hanyadik, jobbveg-0.01, fent + sor * (hanyadik + 1),1,2,'',0);          menufi[MI_BOT_NUM]:=menu.items[lap,4];
     inc(hanyadik);
-    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[13], true);menufi[MI_SOUND]:=menu.items[lap, 5];
+    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[12], true);menufi[MI_GRAPHICS]:=menu.items[lap, 5];
     inc(hanyadik);
-    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[14], true);menufi[MI_CONTROLS]:=menu.items[lap, 6];
+    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[87], true);menufi[MI_MOREGRAPHICS]:=menu.items[lap, 6];
     inc(hanyadik);
-    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[11], true);menufi[MI_INTERFACE]:=menu.items[lap, 7];
+    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[13], true);menufi[MI_SOUND]:=menu.items[lap, 7];
+    inc(hanyadik);
+    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[14], true);menufi[MI_CONTROLS]:=menu.items[lap, 8];
+    inc(hanyadik);
+    menu.AddText(jobbstart, fent + sor * hanyadik, jobbveg, fent + sor * (hanyadik + 1), 1, 2, lang[11], true);menufi[MI_INTERFACE]:=menu.items[lap, 9];
 
 
 
