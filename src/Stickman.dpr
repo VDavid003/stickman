@@ -6044,6 +6044,85 @@ begin
 
 end;
 
+procedure AIlojon;
+var
+i,j,k:integer;
+vec,vec2:TD3DXVector3;
+v1,v2,tmp:TD3DXVector3;
+begin
+
+ for i:=0 to high(AIPlrs) do
+  with AIPlrs[i] do
+  if halal=0 then
+  if lovok then
+  begin
+   cooldown:=cooldown-0.01;
+   if cooldown>0 then continue;
+   vec:=D3DXVector3(cos(ir)*cos(ir2),sin(ir2),sin(ir)*cos(ir2));
+   v1:=pos;
+   v1.y:=v1.y+1.5;
+   v2:=v1;
+   d3dxvec3scale(vec2,vec,0.7);
+   d3dxvec3add(v1,v1,vec2);
+   case AIPlrs[i].fegyv of
+    FEGYV_NOOB:d3dxvec3scale(vec,vec,0.7-0.04);
+    FEGYV_LAW:d3dxvec3scale(vec,vec,0);
+  //  FEGYV_MP5a3: d3dxvec3scale(vec,vec,10);
+    else d3dxvec3scale(vec,vec,300);
+   end;
+   d3dxvec3add(v2,v2,vec);
+
+  {$IFNDEF aiparancsok}
+  if (AIPlrs[i].fegyv <> FEGYV_LAW) and (AIPlrs[i].fegyv <> FEGYV_NOOB) then
+  begin
+
+
+  for k:=0 to high(ojjektumnevek) do
+   for j:=0 to ojjektumarr[k].hvszam-1 do
+    v2:=ojjektumarr[k].raytest(v1,v2,j,COLLISION_BULLET);
+
+  if raytestlvl(v1,v2,100,tmp) then v2:=tmp;
+
+  end;
+   {$ENDIF aiparancsok}
+   with multip2p do
+   begin
+    setlength(lovesek,high(lovesek)+2);
+    lovesek[high(lovesek)].v2:=v2;
+    lovesek[high(lovesek)].pos:=v1;
+    lovesek[high(lovesek)].kilotte:=-i-1;
+    lovesek[high(lovesek)].fegyv:=fegyv;
+   end;
+
+   case fegyv of
+    FEGYV_M4A1:begin lo:=0.5; cooldown:=1/8; {$IFDEF shotgunmod} cooldown:=0.7; {$ENDIF} end;
+    FEGYV_M82A1:begin lo:=1; cooldown:=1/1.5; {$IFDEF shotgunmod} cooldown:=0.7; {$ENDIF} end;
+    FEGYV_MPG:begin lo:=0; cooldown:=1/1.5; end;
+    FEGYV_quad:begin lo:=0.5; cooldown:=1/8; end;
+    FEGYV_NOOB,FEGYV_LAW: cooldown:=4;
+   end;
+
+   if fegyv=FEGYV_QUAD then
+   begin
+     ir:=ir+(100-random(200))/40000;
+     ir2:=ir2+(100-random(200))/40000;
+   end;
+
+   if fegyv=FEGYV_M82A1 then
+    begin
+     ir:=ir+(100-random(200))/500;
+     ir2:=ir2+(100-random(200))/500;
+    end;
+
+   if fegyv=FEGYV_M4A1 then
+    begin
+     ir:=ir+(100-random(200))/5000;
+     ir2:=ir2+(100-random(200))/5000;
+    end
+
+  end;
+end;
+
 procedure addesocsepp(tav:integer);
 const
   mag = 4;
@@ -7392,7 +7471,7 @@ begin
       end;
     end;
 
-    //AIlojon;
+    AIlojon;
     inc(hanyszor);
     // if playrocks>1 then playrocks:=1;
     if vizben < 0 then vizben:=0;
