@@ -21,6 +21,7 @@
 {.$DEFINE oldterrain}
 {.$DEFINE fegyverteszt}
 {.$DEFINE terraineditor}
+{.$DEFINE aikovetes}
 
 program Stickman;
 
@@ -196,6 +197,10 @@ var
   nfsenki:integer;
   botszam:integer;
   ojjektumWP:array of TWaypoints;
+  {$IFDEF aikovetes}
+  kitkovet:integer;
+  aikovcucc:boolean;
+  {$ENDIF}
   //bot vége
 
   portalbaugras:boolean = false;
@@ -4380,7 +4385,14 @@ begin
         nemviz:=true;
     end;
 
-
+  {$IFDEF aikovetes}
+  //bot választás
+  if dine.keyd(DIK_NUMPADPLUS) and not aikovcucc then inc(kitkovet);
+  if dine.keyd(DIK_NUMPADMINUS) and not aikovcucc then dec(kitkovet);
+  aikovcucc:=((dine.keyd(DIK_NUMPADPLUS)) or (dine.keyd(DIK_NUMPADMINUS)));
+  if kitkovet>high(AIPlrs) then kitkovet:=0;
+  if kitkovet<0 then kitkovet:=high(AIPlrs);
+  {$ENDIF}
 
   //Új irányítás kód
   ds:=sin(szogx);
@@ -5142,6 +5154,7 @@ begin
     end;
 
 {$IFNDEF godmode}
+{$IFNDEF aikovetes}
   if invulntim = 0 then
     if love >= 0 then
       if halal = 0 then
@@ -5162,6 +5175,7 @@ begin
         else
           addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), tmp, myfegyv, love, 0, kilotte);
       end;
+{$ENDIF}
 {$ENDIF}
 
 end;
@@ -5512,7 +5526,7 @@ begin
   vec2:=D3DXVector3(cpox^, cpoy^ + 0.8, cpoz^);
   laststate:= 'Docollisiontests 1';
   cp:=D3DXVector3(cpx^, cpy^ * 0.5 + 0.4, cpz^);
-
+  {$IFNDEF aikovetes}
   autobaszallhat:=false;
 
   tulnagylokes:=false;
@@ -5580,7 +5594,7 @@ begin
           if ojjektumarr[l].raytestbol(tegla.pos, tegla.vpos, j, COLLISION_SOLID) then
             wentthroughwall:=true;
       end;
-
+  {$ENDIF}
   //RONGYBABAK
   setlength(rbb, length(rongybabak));
   for j:=0 to rbszam do
@@ -7472,6 +7486,15 @@ begin
     end;
 
     AIlojon;
+     {$IFDEF aikovetes}
+  if kitkovet<length(AIplrs) then
+  if AIplrs[kitkovet].halal=0 then
+  begin
+   cpx^:=Aiplrs[kitkovet].pos.x;
+   cpy^:=Aiplrs[kitkovet].pos.y;
+   cpz^:=Aiplrs[kitkovet].pos.z;
+  end;
+  {$ENDIF}
     inc(hanyszor);
     // if playrocks>1 then playrocks:=1;
     if vizben < 0 then vizben:=0;
@@ -7729,7 +7752,7 @@ begin
 
     iranyithato:=false;
     docollisiontests;
-
+{$IFNDEF aikovetes}
     ox:=cpx^;oy:=cpy^;oz:=cpz^;
     try
       amag:=advwove(cpx^, cpz^);
@@ -7848,7 +7871,7 @@ begin
     playrocks:=playrocks - 0.01;
     // if playrocks>1 then playrocks:=1;
     if playrocks < 0 then playrocks:=0;
-
+{$ENDIF}
     laststate:='Doing AI Physics';
     //Bot fizika
     for i:=0 to high(Aiplrs) do
@@ -9421,6 +9444,7 @@ begin
   D3DXMatrixIdentity(matWorld);
 
   g_pd3dDevice.SetTransform(D3DTS_WORLD, matWorld);
+  {$IFDEF aikovetes} kulsonezet:=true; halal:=0;{$ENDIF}
   // Set up our view matrix. A view matrix can be defined given an eye point,
   // a point to lookat, and a direction for which way is up. Here, we set the
   // eye five units back along the z-axis and up three units, look at the
@@ -16406,7 +16430,11 @@ begin //                 BEGIIIN
         for i:=0 to high(AIplrs) do
           AIplrs[i].free;
         setlength(AIplrs,0);
+{$IFNDEF aikovetes}
         nfsenki:=0;
+{$ELSE}
+        nfsenki:=499;
+{$ENDIF}
 
         multisc.opt_nochat:=opt_nochat;
 
