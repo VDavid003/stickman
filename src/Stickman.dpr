@@ -9189,6 +9189,46 @@ begin
     sortav[i]:=100000;
   end;
 
+ //Legközelebbi 6
+  for i:=0 to high(AIplrs) do
+  begin
+    tt:=tavpointpointsq(AIplrs[i].pos, hol);
+    if (AIplrs[i].state and MSTAT_MASK) = 0 then tt:=tt + 1000000;
+    for j:=0 to high(sorrend) do
+    begin
+      if tt < sortav[j] then
+      begin
+        for k:=high(sorrend) downto j + 1 do
+        begin
+          sortav[k]:=sortav[k - 1];
+          sorrend[k]:=sorrend[k - 1];
+        end;
+        sortav[j]:=tt;
+        sorrend[j]:=i;
+        break;
+      end;
+    end;
+  end;
+ 
+  for i:=0 to high(sorrend) do
+    if sorrend[i] >= 0 then
+    begin
+      id:=i + 26; //idk mi a baja de ez megoldja
+      if (AIPlrs[sorrend[i]].state and MSTAT_MASK) > 0 then
+      begin
+        //id:=ppl[i].sin_addr.S_addr xor ppl[i].sin_port shl 15;
+        playsound(1, false, id, true, AIPlrs[sorrend[i]].pos);
+        if (AIPlrs[sorrend[i]].state and MSTAT_MASK) = (MSTAT_FUT) then SetSoundProperties(1, id, 0, 1.81, true, D3DXVector3Zero)
+        else
+          if (AIPlrs[sorrend[i]].state and MSTAT_GUGGOL) > 0 then SetSoundProperties(1, id, -2000, 0.73, true, D3DXVector3Zero)
+          else
+            SetSoundProperties(1, id, -1000, 1, true, D3DXVector3Zero)
+      end
+      else
+        stopSound(1, id);
+    end
+    else
+      stopSound(1, i);
 
   //Rakéták
 
