@@ -6104,7 +6104,7 @@ begin
     setlength(lovesek,high(lovesek)+2);
     lovesek[high(lovesek)].v2:=v2;
     lovesek[high(lovesek)].pos:=v1;
-    lovesek[high(lovesek)].kilotte:=-i-1;
+    lovesek[high(lovesek)].kilotte:=-i-3;
     lovesek[high(lovesek)].fegyv:=fegyv;
    end;
 
@@ -10027,10 +10027,15 @@ begin
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), tmp, myfegyv, love, 0, aloves.kilotte, true)
           else
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), tmp, myfegyv, love, 0, aloves.kilotte);
-          if aloves.kilotte >= 0 then
-            addHudMessage(lang[65] + ' ' + ppl[aloves.kilotte].pls.nev, betuszin)
-          else
-            addHudMessage(lang[65] + ' ' + lang[105], betuszin);
+          if aloves.kilotte<-2 then begin
+            addHudMessage(lang[65] + ' BOT' + inttostr(aloves.kilotte), betuszin);
+            decbotlevel;
+          end else begin
+            if aloves.kilotte >= 0 then
+              addHudMessage(lang[65] + ' ' + ppl[aloves.kilotte].pls.nev, betuszin)
+            else
+              addHudMessage(lang[65] + ' ' + lang[105], betuszin);
+          end;
           hudMessages[low(hudMessages)].fade:=200;
 
           meghaltam:=true;
