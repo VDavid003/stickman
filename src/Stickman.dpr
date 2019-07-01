@@ -5137,7 +5137,7 @@ end;
 
 procedure handlerobbanas(hol:TD3DXVector3;kilotte:integer;lovesfegyv:byte;x72eletkor:single);
 var
-  love:integer;
+  love, j:integer;
   tmp:TD3DXVector3;
 begin
 
@@ -5185,6 +5185,48 @@ begin
 {$ENDIF}
 {$ENDIF}
 
+ if aimode=0 then
+ for j:=0 to high(AIplrs) do
+ with AIplrs[j] do
+ if halal=0 then
+ begin
+  setupAImuksmatr(j);
+  love:=-1;
+  if ((AIplrs[j].fegyv xor lovesfegyv)>=128) or (kilotte=-j-3) then
+  case lovesfegyv of
+      FEGYV_LAW:love:=felrobbanva(muks.gmbk, muks.kapcsk, hol, Aiplrs[j].pos, BALANCE_LAW_RAD); //balance
+      FEGYV_NOOB:love:=felrobbanva(muks.gmbk, muks.kapcsk, hol, Aiplrs[j].pos, BALANCE_NOOB_RAD);
+      FEGYV_X72:love:=felrobbanva(muks.gmbk, muks.kapcsk, hol, Aiplrs[j].pos, 1.5 + BALANCE_X72_RAD); // x72eletkor/300+0.3
+      FEGYV_H31_G:love:=felrobbanva(muks.gmbk, muks.kapcsk, hol, Aiplrs[j].pos, 1.5 + BALANCE_H31_RAD);
+      FEGYV_H31_T:love:=felrobbanva(muks.gmbk, muks.kapcsk, hol, Aiplrs[j].pos, 1.5 + BALANCE_H31_RAD);
+  end;
+
+
+   if love>=0 then
+    if halal=0 then
+    begin
+     pos:=D3DXvector3(random(100)-50,0,random(100)-50);
+     halal:=1;
+     tmp:=AIplrs[j].pos;
+     tmp.y:=tmp.y+0.5;
+     d3dxvec3subtract(tmp,hol,tmp);
+     fastvec3normalize(tmp);
+     constraintvec(tmp);
+
+    if (kilotte=-1) then
+    begin
+     //MMO.chatelj('==>'+MMO.mynev2 +' killed BOT-'+ inttostr(j+1)+'!');
+     tauntvolt:=true;
+     addHudMessage(lang[59] + 'BOT-' + inttostr(j+1) + lang[60], $FF0000);
+     hudMessages[low(hudMessages)].fade:=200;
+     incbotlevel;
+    end;
+    
+   // else
+    // MMO.chatelj('==>BOT'+inttostr(aloves.kilotte) +' killed BOT-'+ inttostr(j+1)+'!');
+    addrongybaba(pos,vpos,tmp,fegyv,love,random(10000)+1,0);
+   end;
+  end;
 end;
 
 procedure saveterrainmodel;
@@ -10051,6 +10093,55 @@ begin
 {$ENDIF}
 {$ENDIF}
   end;
+
+if aimode=0 then
+ for j:=0 to high(AIplrs) do
+ with AIplrs[j] do
+ if halal=0 then
+ begin
+  setupAImuksmatr(j);
+  for i:=0 to high(multip2p.lovesek) do
+  begin
+   love:=-1;
+   if (aloves.fegyv>=128) xor (fegyv<128) then love:=-1 else
+   case aloves.fegyv of
+        FEGYV_M4A1:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.033);
+        FEGYV_M82A1:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.065);
+        FEGYV_MPG:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.15);
+        FEGYV_QUAD:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.2);
+        FEGYV_MP5A3:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.02);
+        FEGYV_BM3:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.085);
+        FEGYV_BM3_2:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.10);
+        FEGYV_BM3_3:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.13);
+        FEGYV_HPL:love:=meglove(muks.gmbk, muks.kapcsk, aloves.pos, aloves.v2, 0.065);
+   end;
+   if love>=0 then
+    if halal=0 then
+    begin
+     pos:=D3DXvector3(random(100)-50,0,random(100)-50);
+     halal:=1;
+     d3dxvec3subtract(tmp,aloves.v2,aloves.pos);
+     if (aloves.fegyv=FEGYV_M82A1) or (aloves.fegyv=FEGYV_QUAD) then
+      d3dxvec3scale(tmp,tmp,0.6/d3dxvec3length(tmp))
+     else
+      d3dxvec3scale(tmp,tmp,0.3/d3dxvec3length(tmp));
+    constraintvec(tmp);
+    if aloves.kilotte=-1 then
+    begin
+     //MMO.chatelj('==>'+MMO.mynev2 +' killed BOT-'+ inttostr(j+1)+'!');
+     tauntvolt:=true;
+     addHudMessage(lang[59] + 'BOT-' + inttostr(j+1) + lang[60], $FF0000);
+     hudMessages[low(hudMessages)].fade:=200;
+     incbotlevel;
+    end;
+    
+    //else
+    // MMO.chatelj('==>BOT'+inttostr(aloves.kilotte) +' killed BOT-'+ inttostr(j+1)+'!');
+    addrongybaba(pos,vpos,tmp,fegyv,love,random(10000)+1,0);
+    break
+   end;
+  end;
+ end;
 
   setlength(multip2p.lovesek, 0);
 end;
