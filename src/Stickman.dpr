@@ -3227,6 +3227,7 @@ begin
     begin
       pos:=AIPlrs[-mi-1].pos;
       D3DXMatrixRotationY(matWorld2,-AIPlrs[-mi-1].ir-d3dx_pi/2);
+      D3DXMatrixRotationX(matb, clipszogybajusz(AIPlrs[-mi-1].ir2));
       //MessageBox(0, 'Benthagyott AI kód', 'Hiba', 0);
     end
   end
@@ -3301,6 +3302,8 @@ begin
     //MessageBox(0, 'Benttthagyott AI kód', 'Faszom', 0);
     pos:=AIPlrs[-mi-1].pos;
     D3DXMatrixRotationY(matWorld2,-AIPlrs[-mi-1].ir-d3dx_pi/2);
+    D3DXMatrixRotationX(mat2, clipszogy(AIPlrs[-mi-1].ir2));
+    D3DXMatrixMultiply(matWorld2, mat2, matWorld2);
 
     if (AIPlrs[-mi-1].fegyv = FEGYV_HPL) and not iscsip then
       D3DXMatrixTranslation(matWorld, -0.05, 0.02, -0.11)
@@ -11499,8 +11502,8 @@ begin
   begin
   SetupMuksmatr(i);
     if i<0 then begin
-  muks.jkez:=fegyv.jkez(afegyv, astate);
-  muks.bkez:=fegyv.bkez(afegyv, astate);
+  muks.jkez:=fegyv.jkez(afegyv, astate, clipszogy(AIPlrs[-i-1].ir2));
+  muks.bkez:=fegyv.bkez(afegyv, astate, clipszogy(AIPlrs[-i-1].ir2));
   end else begin
   muks.jkez:=fegyv.jkez(afegyv, astate, clipszogy(ppl[i].pos.irany2));
   muks.bkez:=fegyv.bkez(afegyv, astate, clipszogy(ppl[i].pos.irany2));
@@ -12739,10 +12742,10 @@ begin
         if tavpointpointsq(AIplrs[i].pos,campos) < sqr(50 + 20 * opt_detail) then
         begin
           setupmuksmatr(-i-1);
-          mat_world._41:=mat_world._41+AIplrs[i].fejh.x;
-          mat_world._42:=mat_world._42+AIplrs[i].fejh.y;
-          mat_world._43:=mat_world._43+AIplrs[i].fejh.z;
-          fejcuccrenderer.Render(AIplrs[i].fejcucc,mat_world,false,D3DXVector3(cpx^,cpy^,cpz^));
+          mat_bajusz._41:=mat_bajusz._41 + AIplrs[i].fejh.x;
+          mat_bajusz._42:=mat_bajusz._42 + AIplrs[i].fejh.y;
+          mat_bajusz._43:=mat_bajusz._43 + AIplrs[i].fejh.z;
+          fejcuccrenderer.Render(AIplrs[i].fejcucc, mat_bajusz ,false, D3DXVector3(cpx^,cpy^,cpz^));
         end;
 
       fejcuccrenderer.Flush;
