@@ -5169,6 +5169,13 @@ begin
 
         constraintvec(tmp);
 
+        if kilotte<-2 then
+        begin
+          addHudMessage(lang[65] + ' BOT' + inttostr(kilotte+2), betuszin);
+          hudMessages[low(hudMessages)].fade:=200;
+          decbotlevel;
+        end;
+
         suicidevolt:=800;
         if (lovesfegyv = FEGYV_H31_G) or (lovesfegyv = FEGYV_H31_T) then
           addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), tmp, myfegyv, love, 0, kilotte, true)
@@ -10028,7 +10035,7 @@ begin
           else
             addrongybaba(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(cpox^, cpoy^, cpoz^), tmp, myfegyv, love, 0, aloves.kilotte);
           if aloves.kilotte<-2 then begin
-            addHudMessage(lang[65] + ' BOT' + inttostr(aloves.kilotte), betuszin);
+            addHudMessage(lang[65] + ' BOT' + inttostr(aloves.kilotte+2), betuszin);
             decbotlevel;
           end else begin
             if aloves.kilotte >= 0 then
