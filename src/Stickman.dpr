@@ -22,6 +22,7 @@
 {.$DEFINE fegyverteszt}
 {.$DEFINE terraineditor}
 {.$DEFINE aikovetes}
+{.$DEFINE AIparancsok}
 
 program Stickman;
 
@@ -193,6 +194,7 @@ var
 
   //bot cuccok
   AImode:byte {$IFDEF AIparancsok}=1{$ENDIF}; //0 megy; 1 disabled; 2 add gun; 3 add tech; 4 Buta mód
+  {$IFDEF AIparancsok}AItaroltpos:array of TD3DXVector3;{$ENDIF}
   AIplrs:array of TAIplr;
   nfsenki:integer;
   botszam:integer;
@@ -4053,6 +4055,29 @@ begin
   ojjektumrenderer.Destroy;
   ojjektumrenderer:=T3DORenderer.Create(G_pd3ddevice);
 {$ENDIF}
+
+  {$IFDEF AIparancsok}
+  if aimode>1 then
+  begin
+   setlength(AIplrs,length(AIplrs)+1);
+   AIplrs[high(AIplrs)]:=TAIplr.Create(v2,random(2));
+   if random(20)=0 then AIplrs[high(AIplrs)].fegyv:=2;
+   if aimode=3 then
+   inc(AIplrs[high(AIplrs)].fegyv,128);
+   if AIplrs[high(AIplrs)].fegyv=FEGYV_X72 then AIplrs[high(AIplrs)].fegyv:=FEGYV_MPG;
+
+   AIplrs[high(AIplrs)].halal:=0;
+   if random(2)>0 then
+    inc(AIplrs[high(AIplrs)].state,MSTAT_CSIPO);
+  // if random(2)>0 then inc(AIplrs[high(AIplrs)].state,MSTAT_GUGGOL);
+   //AIplrs[high(AIplrs)].fegyv:=FEGYV_QUAD;
+  // AIplrs[high(AIplrs)].fejcucc:=5;
+
+
+   setlength(Aitaroltpos,length(AIplrs));
+   AItaroltpos[high(AIplrs)]:=v2;
+  end;
+  {$ENDIF}
 
   if aimbot > 0 then
     for i:=0 to high(ppl) do
@@ -15225,6 +15250,33 @@ var
       writeln(logfile, multisc.chats[addchatindex].uzenet, ' ', multisc.chats[addchatindex + 1].uzenet, ' ', multisc.chats[addchatindex + 2].uzenet);
       addchatindex:=addchatindex + 3;
     end;
+{$IFDEF AIparancsok}
+ if pos('/ai ',mit)>0 then
+ begin
+  if pos('/ai disable',mit)>0 then aimode:=1;
+  if pos('/ai enable',mit)>0 then aimode:=0;
+  if pos('/ai clear',mit)>0 then
+  begin
+   for i:=0 to high(AIplrs) do
+    AIplrs[i].free;
+   setlength(AIplrs,0);
+   aimode:=1;
+  end;
+  if pos('/ai addgun',mit)>0 then aimode:=2;
+  if pos('/ai addtech',mit)>0 then aimode:=3;
+  if pos('/ai reset',mit)>0 then
+  begin
+   aimode:=1;
+   for i:=0 to high(AIplrs) do
+   begin
+    AIplrs[i].pos:=AItaroltpos[i];
+    AIplrs[i].celmegvan:=true;
+     AIplrs[i].halal:=0;
+     AIplrs[i].lovok:=false;
+   end;
+  end;
+ end;
+  {$ENDIF}
   end;
 
   {WAT
