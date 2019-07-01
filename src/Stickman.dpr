@@ -5584,7 +5584,7 @@ end;
 
 procedure DoCollisionTests;
 var
-  i, j, k, l, m:integer;
+  i, j, k, l, m, n:integer;
   adst, mdst:single;
   cp, ap, kp:TD3DXVector3;
   rbb:array of TAABB;
@@ -5602,11 +5602,46 @@ begin
 
   vec2:=D3DXVector3(cpox^, cpoy^ + 0.8, cpoz^);
   laststate:= 'Docollisiontests 1';
+
+  //AI
+  for n:=0 to {$IFDEF aiparancsok}0 {$ELSE} high(AIplrs) {$ENDIF} do //eredetileg benne volt a self collision is de egyszerûség kedviért most külön van
+  begin
+    if AIplrs[n].halal>0 then continue;
+
+    cp:=D3DXVector3(AIplrs[n].pos.x,AIplrs[n].pos.y+0.8,AIplrs[n].pos.z);
+    cp.y:=cp.y/2;
+
+    tulnagylokes:=false;
+
+    for j:=0 to high(ojjektumnevek) do
+      for i:=0 to ojjektumarr[j].hvszam-1 do
+      begin
+        adst:=ojjektumarr[j].tavtest(cp,0.4,ap,i,true, COLLISION_SOLID);
+        if adst>sqr(0.4) then continue;
+        adst:=sqrt(adst);
+
+        if 0.4-adst>0.05 then
+          tulnagylokes:=true;
+        d3dxvec3subtract(kp,ap,cp);
+        d3dxvec3scale(kp,kp,1/adst);
+        AIplrs[n].iranyithato:=true;//AIplrs[n].iranyithato or (kp.y<-0.2);
+
+        d3dxvec3scale(kp,kp,(0.4-adst));
+        kp.x:=kp.x*0.5;
+        kp.z:=kp.z*0.5;
+        d3dxvec3subtract(cp,cp,kp);
+      end;
+
+    AIplrs[n].pos:=cp;
+    AIplrs[n].pos.y:=AIplrs[n].pos.y*2-0.8;
+  end;
+
   cp:=D3DXVector3(cpx^, cpy^ * 0.5 + 0.4, cpz^);
   {$IFNDEF aikovetes}
   autobaszallhat:=false;
 
   tulnagylokes:=false;
+
   for j:=0 to high(ojjektumnevek) do
     for i:=0 to ojjektumarr[j].hvszam - 1 do
     begin
