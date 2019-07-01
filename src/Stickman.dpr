@@ -5624,7 +5624,7 @@ begin
           tulnagylokes:=true;
         d3dxvec3subtract(kp,ap,cp);
         d3dxvec3scale(kp,kp,1/adst);
-        AIplrs[n].iranyithato:=true;//AIplrs[n].iranyithato or (kp.y<-0.2);
+        AIplrs[n].iranyithato:= AIplrs[n].iranyithato or (kp.y<-0.2);
 
         d3dxvec3scale(kp,kp,(0.4-adst));
         kp.x:=kp.x*0.5;
@@ -7857,8 +7857,50 @@ begin
     oopos:=D3DXVector3(cpox^, cpoy^, cpoz^);
     wentthroughwall:=false;
 
-    laststate:= 'Doing Real Physics';
+    laststate:='Doing AI Physics';
+    //Bot fizika
+    for i:=0 to high(Aiplrs) do
+      if AIplrs[i].halal=0 then
+      begin
+        Aiplrs[i].opos:=Aiplrs[i].pos;
+        {$IFDEF AIparancsok}
+        amag:=advwove(Aiplrs[i].pos.x,Aiplrs[i].pos.z);
+        {$ELSE}
+        yandnorm(Aiplrs[i].pos.x,amag,Aiplrs[i].pos.z,norm,1);
+        {$ENDIF}
+        Aiplrs[i].pos.y:=Aiplrs[i].pos.y*2-Aiplrs[i].vpos.y-GRAVITACIO;
+        if (Aiplrs[i].pos.y-0.05)<amag then
+        begin
+          Aiplrs[i].pos.y:=amag;
+          Aiplrs[i].opos.y:=amag;
+          {$IFNDEF AIparancsok}
+          if norm.y<0.83 then
+          begin
+            Aiplrs[i].pos.x:=Aiplrs[i].pos.x+norm.x*0.001;
+            Aiplrs[i].pos.z:=Aiplrs[i].pos.z+norm.z*0.001;
+          end;
+          {$ENDIF}
+        end;
+        {$IFDEF AIparancsok}
+        Aiplrs[i].iranyithato:=true;
+        {$ELSE}
+        Aiplrs[i].iranyithato:=((Aiplrs[i].pos.y-0.1)<amag) and (norm.y>0.83);
+        tx:=Aiplrs[i].pos.x+cos(Aiplrs[i].ir);
+        tz:=Aiplrs[i].pos.z+sin(Aiplrs[i].ir);
 
+        yandnorm(tx,amag,tz,norm,1);
+        if (amag<(10-1.7)) and (AIplrs[i].halal=0) then
+        begin
+          setupaimuksmatr(i);
+          With AIplrs[i] do
+          addrongybaba(pos,vpos,d3dxvector3zero,0,0,random(10000)+1,0);
+          AIplrs[i].halal:=0.01;
+        end;
+        Aiplrs[i].szfe:=(amag<10) or (norm.y<0.83);
+        {$ENDIF}
+      end;
+
+    laststate:= 'Doing Real Physics';
 
     //Saját fizika
 
@@ -7984,48 +8026,6 @@ begin
     // if playrocks>1 then playrocks:=1;
     if playrocks < 0 then playrocks:=0;
 {$ENDIF}
-    laststate:='Doing AI Physics';
-    //Bot fizika
-    for i:=0 to high(Aiplrs) do
-      if AIplrs[i].halal=0 then
-      begin
-        Aiplrs[i].opos:=Aiplrs[i].pos;
-        {$IFDEF AIparancsok}
-        amag:=advwove(Aiplrs[i].pos.x,Aiplrs[i].pos.z);
-        {$ELSE}
-        yandnorm(Aiplrs[i].pos.x,amag,Aiplrs[i].pos.z,norm,1);
-        {$ENDIF}
-        Aiplrs[i].pos.y:=Aiplrs[i].pos.y*2-Aiplrs[i].vpos.y-GRAVITACIO;
-        if (Aiplrs[i].pos.y-0.05)<amag then
-        begin
-          Aiplrs[i].pos.y:=amag;
-          Aiplrs[i].opos.y:=amag;
-          {$IFNDEF AIparancsok}
-          if norm.y<0.83 then
-          begin
-            Aiplrs[i].pos.x:=Aiplrs[i].pos.x+norm.x*0.001;
-            Aiplrs[i].pos.z:=Aiplrs[i].pos.z+norm.z*0.001;
-          end;
-          {$ENDIF}
-        end;
-        {$IFDEF AIparancsok}
-        Aiplrs[i].iranyithato:=true;
-        {$ELSE}
-        Aiplrs[i].iranyithato:=((Aiplrs[i].pos.y-0.1)<amag) and (norm.y>0.83);
-        tx:=Aiplrs[i].pos.x+cos(Aiplrs[i].ir);
-        tz:=Aiplrs[i].pos.z+sin(Aiplrs[i].ir);
-
-        yandnorm(tx,amag,tz,norm,1);
-        if (amag<(10-1.7)) and (AIplrs[i].halal=0) then
-        begin
-          setupaimuksmatr(i);
-          With AIplrs[i] do
-          addrongybaba(pos,vpos,d3dxvector3zero,0,0,random(10000)+1,0);
-          AIplrs[i].halal:=0.01;
-        end;
-        Aiplrs[i].szfe:=(amag<10) or (norm.y<0.83);
-        {$ENDIF}
-      end;
 
   //Bot fizika befejezés
   for i:=0 to high(Aiplrs) do
