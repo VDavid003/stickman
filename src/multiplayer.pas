@@ -750,7 +750,8 @@ begin
 {$IFDEF fakenetchecksum}
       SendLogin(nev, jelszo, fegyver, fegyver_skin, fejcucc, myport, datachecksum);
 {$ELSE}
-      SendLogin(nev, jelszo, fegyver, fegyver_skin, fejcucc, myport, checksum);
+      //SendLogin(nev, jelszo, fegyver, fegyver_skin, fejcucc, myport, checksum); a fakenetchecksum + módosított alap checksum pár cuccot elcsesz, so csak a netes részt írom át
+      SendLogin(nev, jelszo, fegyver, fegyver_skin, fejcucc, myport, $A219091E); //botmodos checksum
 {$ENDIF}
     end;
     exit;
@@ -1477,4 +1478,3 @@ begin
 end;
 
 end.
-
