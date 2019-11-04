@@ -3773,7 +3773,7 @@ begin
     multip2p.Killed(apos, vpos, szogx, mstat, animstat, mlgmb, gmbvec, kimiatt);
   end;
 
-  if rbszam >= 20 then exit;
+  if rbszam >= 50 then exit;
   inc(rbszam);
 
   mv2:=mat_world;
