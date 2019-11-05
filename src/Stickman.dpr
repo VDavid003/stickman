@@ -18,6 +18,7 @@
 {.$DEFINE profiler}
 {.$DEFINE propeditor}
 {.$DEFINE localhost}
+{.$DEFINE nomodifier}
 {.$DEFINE oldterrain}
 {.$DEFINE fegyverteszt}
 {.$DEFINE terraineditor}
@@ -15550,7 +15551,8 @@ begin //                 BEGIIIN
       if servername = '' then
         servername:='server.stickman.hu';
     end;
-    if stuffjson.GetString(['modname']) = 'Official' then //if not modded
+    {$IFNDEF nomodifier}
+    if (stuffjson.GetString(['modname']) = 'Official') then //if not modded
     try
       laststate:= 'Fetching modifier.json';
       writeln(logfile, 'Fetching modifier.json');
@@ -15578,6 +15580,7 @@ begin //                 BEGIIIN
     except
       writeln(logfile, 'Failed to fetch modifier.json');
     end;
+    {$ENDIF}
     closefile(hostfile);
 {$ENDIF}
 
