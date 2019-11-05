@@ -182,6 +182,7 @@ var
   menu:T3dMenu = nil;
   nohud:boolean = false;
   nofegyv:boolean = false;
+  bots_enabled:boolean = true;
 
   battle:boolean = false;
   skirmish:boolean = false;
@@ -6980,6 +6981,7 @@ begin
   laststate:='handlebots';
   if menu.lap >= 0 then exit;
   if length(ppl) > 1 then exit;
+  if not bots_enabled then exit;
   for groupIndex := low(botGroupArr) to high(botGroupArr) do
     for botIndex := low(botGroupArr[groupIndex].bots) to high(botGroupArr[groupIndex].bots) do
     begin
@@ -6997,6 +6999,7 @@ begin
   laststate:='renderbots';
   if menu.lap >= 0 then exit;
   if length(ppl) > 1 then exit;
+  if not bots_enabled then exit;
   for groupIndex := low(botGroupArr) to high(botGroupArr) do
     for botIndex := low(botGroupArr[groupIndex].bots) to high(botGroupArr[groupIndex].bots) do
       botGroupArr[groupIndex].bots[botIndex].collideProjectile(loves);
@@ -7009,6 +7012,7 @@ begin
   laststate:='renderbots';
   if menu.lap >= 0 then exit;
   if length(ppl) > 1 then exit;
+  if not bots_enabled then exit;
   for groupIndex := low(botGroupArr) to high(botGroupArr) do
     for botIndex := low(botGroupArr[groupIndex].bots) to high(botGroupArr[groupIndex].bots) do
       if not botGroupArr[groupIndex].bots[botIndex].getIsDead then
@@ -7024,6 +7028,7 @@ begin
   laststate:='renderbotFegyvs';
   if menu.lap >= 0 then exit;
   if length(ppl) > 1 then exit;
+  if not bots_enabled then exit;
   for groupIndex := low(botGroupArr) to high(botGroupArr) do
     for botIndex := low(botGroupArr[groupIndex].bots) to high(botGroupArr[groupIndex].bots) do
     begin
@@ -14376,6 +14381,9 @@ var
 
     if pos(' /nohud', mit) = 1 then
       nohud:= not nohud;
+
+    if pos(' /bot', mit) = 1 then
+      bots_enabled:= not bots_enabled;
 
     if pos(' /activate portalevent code:12.11.16', mit) = 1 then
       portalevent.phs:=1;
