@@ -15599,6 +15599,9 @@ begin //                 BEGIIIN
     //WINTER
     winter:=stuffjson.getBool(['winter']);
 
+    //Bots
+    bots_enabled:=stuffjson.getBool(['bots_default_enabled']);
+
     if winter then
     begin
       CMAP1_PATH := CMAP_PATH+'winter/cmap.png'; //régi terep
