@@ -2501,8 +2501,8 @@ var
   groupCount, weaponCount, maxSize: Integer;
   groupIndex, weaponIndex, botIndex, i: Integer;
   team, mode, fegyvname: string;
-  spawnpos, tmpPos: TD3DXVector3;
-  spawnrad: Integer;
+  spawnpos: TD3DXVector3;
+  spawnrad: Cardinal;
   tmode: TBotMode;
   bot: TBot;
   tfegyv: Byte;
@@ -2524,7 +2524,7 @@ begin
     else tmode := BOT_DUMMY;
 
     spawnpos.x := stuffjson.GetFloat(['botgroups', groupIndex, 'spawnpos', 'x']);
-    spawnpos.y := stuffjson.GetFloat(['botgroups', groupIndex, 'spawnpos', 'y']);
+    spawnpos.y := 0;
     spawnpos.z := stuffjson.GetFloat(['botgroups', groupIndex, 'spawnpos', 'z']);
     spawnrad := stuffjson.GetInt(['botgroups', groupIndex, 'spawnrad']);
 
@@ -2552,9 +2552,6 @@ begin
       tmode := botGroupArr[groupIndex].botMode;
       spawnpos := botGroupArr[groupIndex].spawnpos;
       spawnrad := botGroupArr[groupIndex].spawnrad;
-      tmpPos.x := spawnpos.x + random(spawnrad) - spawnrad div 2;
-      tmpPos.y := spawnpos.y;
-      tmpPos.z := spawnpos.z + random(spawnrad) - spawnrad div 2;
 
       if length(botGroupArr[groupIndex].fegyvs) > 0 then
           tfegyv := botGroupArr[groupIndex].fegyvs[random(high(botGroupArr[groupIndex].fegyvs) + 1)]
@@ -2566,7 +2563,8 @@ begin
         botIndex,
         tmode,
         tfegyv,
-        tmpPos
+        spawnpos,
+        spawnrad
       );
 
       botGroupArr[groupIndex].Add(bot);
@@ -3032,7 +3030,6 @@ begin
   FillupMenu;
   crunchSettings; //tyúklife
 
-
   ParticleSystem_Init(g_pd3ddevice);
 
   if dobulletholes then
@@ -3272,7 +3269,6 @@ procedure SetupMuksmatr(mi:integer);
 var
   matWorld, matWorld2, matb:TD3DMatrix;
   pos:TD3DVector;
-  modifier:TD3DXVector3;
 begin
     if mi >= 0 then
     begin
@@ -3280,8 +3276,6 @@ begin
         pos:=ppl[mi].pos.megjpos
       else
         pos:=ppl[mi].pos.pos;
-
-        D3DXVec3add(pos, pos, modifier);
 
      //pos:=pplpos[mi].pos;
      D3DXMatrixRotationY(matWorld2, ppl[mi].pos.irany + d3dx_pi);
@@ -4386,6 +4380,22 @@ begin
 
   //ICE
   if (cpy^ <= waterlevel+0.5) and winter then cpy^ := cpy^+0.008;
+
+  //SELFIE
+  if selfieMaker.isSelfieModeOn then
+  begin
+    if dine.keyprsd(DIK_X) then
+    begin
+      //evalscriptline('fastinfo X');
+      case selfieMaker.zoomlevel of
+        CLOSE: selfieMaker.zoomlevel := NORMAL;
+        NORMAL: selfieMaker.zoomlevel := WIDE;
+        WIDE: selfieMaker.zoomlevel := CLOSE;
+      end;
+      // y u no work ??? inc(selfieMaker.zoomlevel);
+    end;
+    if dine.keyprsd(DIK_B) then selfieMaker.dab := not selfieMaker.dab;
+  end;
 
   // TODO
   inspect:=dine.keyd(DIK_O) and (halal = 0) and iranyithato and csipo;
@@ -7047,9 +7057,6 @@ procedure handleSelfies;
 begin
   if selfieMaker.isSelfieModeOn then
   begin
-    if dine.keyprsd(DIK_X) then inc(selfieMaker.zoomlevel);
-    if dine.keyprsd(DIK_B) then selfieMaker.dab := not selfieMaker.dab;
-
     //evalscriptline('fastinfo selfie mode on');
     iranyithato := FALSE;
     nemlohet := TRUE;
@@ -8265,7 +8272,7 @@ end;
   until (hanyszor * 10 > timegettime) or (korlat > 20);
   //////////
 
-  if rbszam > 4 then delrongybaba(-1);
+  if rbszam > 30 then delrongybaba(-1);
   hvolt:=false;
   i:=hanyszor * 10 - timegettime;
 
@@ -15588,6 +15595,9 @@ begin //                 BEGIIIN
 
     //WINTER
     winter:=stuffjson.getBool(['winter']);
+
+    //Bots
+    bots_enabled:=stuffjson.getBool(['bots_default_enabled']);
 
     if winter then
     begin
