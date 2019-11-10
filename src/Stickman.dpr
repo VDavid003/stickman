@@ -3029,7 +3029,6 @@ begin
   FillupMenu;
   crunchSettings; //tyúklife
 
-
   ParticleSystem_Init(g_pd3ddevice);
 
   if dobulletholes then
@@ -3269,7 +3268,6 @@ procedure SetupMuksmatr(mi:integer);
 var
   matWorld, matWorld2, matb:TD3DMatrix;
   pos:TD3DVector;
-  modifier:TD3DXVector3;
 begin
     if mi >= 0 then
     begin
@@ -3277,8 +3275,6 @@ begin
         pos:=ppl[mi].pos.megjpos
       else
         pos:=ppl[mi].pos.pos;
-
-        D3DXVec3add(pos, pos, modifier);
 
      //pos:=pplpos[mi].pos;
      D3DXMatrixRotationY(matWorld2, ppl[mi].pos.irany + d3dx_pi);
@@ -8275,7 +8271,7 @@ end;
   until (hanyszor * 10 > timegettime) or (korlat > 20);
   //////////
 
-  if rbszam > 4 then delrongybaba(-1);
+  if rbszam > 30 then delrongybaba(-1);
   hvolt:=false;
   i:=hanyszor * 10 - timegettime;
 
