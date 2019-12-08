@@ -15,8 +15,8 @@ uses
   qjson;
 
 const
-  PROG_VER=209080;
-  datachecksum=$74D896D9;
+  PROG_VER=209090;
+  datachecksum=$D6DF43C8;
 type
 
   array4ofbyte=array[0..3] of byte;
@@ -567,7 +567,10 @@ var
   hudInfo:string;
   hudInfoFade:word;
   hudInfoColor:integer;
+
   winter:boolean=false;
+  ice:boolean=false;
+
   unfocused:boolean;
   multisampling:integer=0;
   SCwidth:integer=800;
