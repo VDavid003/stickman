@@ -16270,7 +16270,7 @@ begin //                 BEGIIIN
 
     assignfile(logfile, 'log.txt');
     rewrite(logfile);
-    writeln(logfile, 'Stickman Warfare v2.' + inttostr((PROG_VER div 1000) mod 100) + '.' + inttostr((PROG_VER div 10) mod 100) + ' (' + inttohex(-exe_checksum, 8) + '). Log file.');
+    writeln(logfile, 'Stickman Warfare v' + inttostr(PROG_VER div 100000) + '.' + inttostr((PROG_VER div 1000) mod 100) + '.' + inttostr((PROG_VER div 10) mod 100) + '.' + inttostr(PROG_VER mod 10) + ' (' + inttohex(-exe_checksum, 8) + '). Log file.');
     writeln(logfile, '---------------------------------------');
 
     writeln(logfile, 'Game started at:', formatdatetime('yyyy.mm.dd/hh:nn:ss', date + time));
