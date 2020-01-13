@@ -22,6 +22,7 @@
 {.$DEFINE oldterrain}
 {.$DEFINE fegyverteszt}
 {.$DEFINE terraineditor}
+{.$DEFINE watercraftcommands}
 
 program Stickman;
 
@@ -14853,7 +14854,7 @@ var
       selfieMaker.zoomlevel := 2;
       selfieMaker.dab := FALSE;
     end;
-    {
+{$IFDEF watercraftcommands}
     if pos(' /boat', mit) = 1 then
     begin
       SpawnVehicle(d3dxvector3(-335, waterlevel, -60),1,'airboat');
@@ -14863,7 +14864,8 @@ var
     begin
       SpawnVehicle(d3dxvector3(-335, waterlevel, -60),2,'submarine');
     end;
-     
+{$ENDIF}
+    {
     if pos(' //', mit) = 1 then evalscriptline(copy(mit, 4, length(mit) - 3));
       }
 {$IFDEF propeditor}
