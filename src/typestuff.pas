@@ -15,8 +15,9 @@ uses
   qjson;
 
 const
-  PROG_VER=209090;
-  datachecksum=$D6DF43C8;
+  PROG_VER=210000;
+  datachecksum=$CF484AA7;
+
 type
 
   array4ofbyte=array[0..3] of byte;
@@ -263,6 +264,8 @@ type
     pos,seb,vpos,vseb:TD3DXVector3;
     axes,vaxes:array[0..2] of TD3DXVector3;
     fordszam:single;
+    watercraft:bool;
+    changed:bool;
   end;
 
   Tplayer=record
@@ -307,6 +310,24 @@ type
     clan:string;
     kill:integer;
     killoperator:string; //GT LT EQ GTE LTE
+  end;
+
+  TLeaveTrigger=record
+    name:string; //idk minek de miért ne
+    pos:TD3DXVector3;
+    exitpos:TD3DXVector3;
+    rad:single;
+    touched:boolean;
+    vehicle:boolean;
+    watercraft:boolean;
+    teams:string;
+  end;
+
+  TExtraPartAsset=record
+    vehicletype:byte; //most nem lesz megoldható az alap 2 jármû megkülönböztetése, ha valakinek kéne az csinálja meg névre vagy alakítsa át a 2 jármûvet vehicletypeos cuccra
+    partnum:byte;
+    mesh:ID3DXMesh;
+    tex:IDirect3DTexture9;
   end;
 
   TScript=record
@@ -718,8 +739,6 @@ const
   FEGYV_B_X72 = 171;
   FEGYV_B_HPL = 181;
   //SKINEK END
-
-  FEGYV_NUM=10;
 
   MSTAT_MASK=15;
   MSTAT_ALL=0;

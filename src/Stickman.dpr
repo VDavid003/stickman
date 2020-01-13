@@ -59,7 +59,8 @@ uses
   Windows,
   Winsock2,
   BotGroups,
-  Selfie;
+  Selfie,
+  stickApi;
 
 //StopWatch //TODO: kivenni
 
@@ -102,7 +103,7 @@ const
   CMAP_SIZE = 1024;
   CMAP_PATH = 'data/textures/map/';
 
-
+  NL = AnsiString(#13#10);
 
   //-----------------------------------------------------------------------------
   // Global variables
@@ -157,12 +158,17 @@ var
   viztex:IDirect3DTexture9 = nil;
   cartex:IDirect3DTexture9 = nil;
   antigravtex:IDirect3DTexture9 = nil;
+  airboattex:IDirect3DTexture9 = nil;
+  submarinetex:IDirect3DTexture9 = nil;
   kerektex:IDirect3DTexture9 = nil;
   g_pautomesh:ID3DXMesh = nil;
   g_pantigravmesh:ID3DXMesh = nil;
   g_pkerekmesh:ID3DXMesh = nil;
+  g_airboatmesh:ID3DXMesh = nil;
+  g_submarinemesh:ID3DXMesh = nil;
   skytex:IDirect3DTexture9 = nil;
   skystrips:array[0..20] of array[0..31] of TSkyVertex;
+  extrapartassets:array of TExtraPartAsset;
 
 
   hogombmesh:ID3DXMesh = nil;
@@ -317,10 +323,13 @@ var
   kulsonezet:boolean = false;
   autoban:boolean = false;
   autobaszallhat:boolean;
+  watercraftbaszallhat:boolean;
   autobaszallhatpos:TD3DXVector3;
   recovercar, vanishcar, kiszallas:integer;
   latszonazF, latszonazR:word;
   volthi, voltspeeder, voltbasejump:boolean;
+  nearleavetrigger:boolean = false;
+  leavetrigger_exitpos:TD3DXVector3;
 
 
   tegla:Tauto;
@@ -379,6 +388,7 @@ var
   particlesProtos:array of TParticleSys;
   labels:array of T3dLabel;
   triggers:array of TTrigger;
+  leavetriggers:array of TLeaveTrigger;
   binds:array of TBind;
   timedscripts:array of TTimedscript;
 
@@ -437,6 +447,233 @@ procedure evalscriptline(line:string);forward;
 procedure evalScript(name:string);forward;
 procedure writeChat(s:string);forward;
 procedure fillupmenu;forward;
+
+
+//-----------------------------------------------------------------------------
+// THREADS
+//-----------------------------------------------------------------------------
+
+//TODO: move api related threads to stickApi unit
+//      (requires separate script handler unit at least)
+
+{
+//EXAMPLE
+type TPrintServerTimeThread = class(TAsync)
+private
+  _api: TApi;
+  _response: TApiResponse;
+protected
+ procedure Execute; override;
+end;
+
+procedure TPrintServerTimeThread.Execute;
+var
+  output: string;
+begin
+  try
+    _api := TApi.Create;
+    _response := _api.GET(baseUrl + 'servertime');
+
+    if _response.success then
+    begin
+       output := _response.data.getString(['data','time']);
+
+       evalscriptline('display ' + output);
+    end;
+  finally
+    Terminate;
+  end;  
+end;
+}
+
+type TToplist = (TOP_MONTHLY, TOP_WEEKLY, TOP_DAILY, TOP_ALL);
+
+type TPrintTopThread = class(TAsync)
+private
+  _api: TApi;
+  _response: TApiResponse;
+  _endpoint: string;
+protected
+  procedure Execute; override;
+public
+  constructor Create(startSuspended: boolean; mode: TToplist = TOP_ALL);
+end;
+
+constructor TPrintTopThread.Create(startSuspended: boolean; mode: TToplist = TOP_ALL);
+begin
+  inherited Create(startSuspended);
+
+  case mode of
+    TOP_MONTHLY: _endpoint := 'havitop';
+    TOP_WEEKLY: _endpoint := 'hetitop';
+    TOP_DAILY: _endpoint := 'napitop';
+    TOP_ALL: _endpoint := 'top';
+  end;
+end;
+
+procedure TPrintTopThread.Execute;
+var
+  output: string;
+  nev: string;
+  pont: string;
+  line: string;
+  i: Cardinal;
+begin
+  try
+    _api := TApi.Create;
+    _response := _api.GET(baseUrl + _endpoint);
+
+    if _response.success then
+    begin
+      for i := 0 to 9 do
+      begin
+        nev := _response.data.getString(['data', i, 'nev']);
+        if length(nev) = 0 then nev := '-';
+
+        pont := _response.data.getString(['data', i, 'pont']);
+        if length(pont) = 0 then pont := '';
+
+        line := inttostr(i + 1) + '. ' + nev + ' ' + pont;
+        output := output + NL + line;
+       end;
+       evalscriptline('display ' + output);
+    end;
+  finally
+    Terminate;
+  end;
+end;
+
+
+type TPrintRank = class(TAsync)
+private
+  _api: TApi;
+  _response: TApiResponse;
+  _uname: string;
+  _mode: string;
+protected
+  procedure Execute; override;
+public
+  constructor Create(startSuspended: boolean; uname: string; mode: TToplist = TOP_ALL);
+end;
+
+constructor TPrintRank.Create(startSuspended: boolean; uname: string; mode: TToplist = TOP_ALL);
+begin
+  inherited Create(startSuspended);
+
+  _uname := uname;
+  case mode of
+    TOP_MONTHLY: _mode := 'havi';
+    TOP_WEEKLY: _mode := 'heti';
+    TOP_DAILY: _mode := 'napi';
+    TOP_ALL: _mode := 'ossz';
+  end;
+end;
+
+procedure TPrintRank.Execute;
+var
+  output: string;
+begin
+  try
+    _api := TApi.Create;
+    _response := _api.GET(baseUrl + 'rank&nev=' + _uname + '&type=' + _mode);
+
+    if _response.success then
+    begin
+      output := _response.data.getString(['data', 'rank']);
+
+      evalscriptline('display ' + output);
+    end;
+
+  finally
+    Terminate;
+  end;
+end;
+
+
+type TPrintKoTH = class(TAsync)
+private
+  _api: TApi;
+  _response: TApiResponse;
+protected
+  procedure Execute; override;
+end;
+
+procedure TPrintKoTH.Execute;
+var
+  output: string;
+  nev: string;
+  pont: string;
+  line: string;
+  i: Cardinal;
+begin
+  try
+    _api := TApi.Create;
+    _response := _api.GET(baseUrl + 'koth');
+
+    if _response.success then
+    begin
+      for i := 0 to 9 do
+      begin
+        nev := _response.data.getString(['data', i, 'nev']);
+        if length(nev) = 0 then nev := '-';
+
+        pont := _response.data.getString(['data', i, 'pont']);
+        if length(pont) = 0 then pont := '';
+
+        line := inttostr(i + 1) + '. ' + nev + ' ' + pont;
+        output := output + NL + line;
+       end;
+       evalscriptline('display ' + output);
+    end;
+  finally
+    Terminate;
+  end;
+end;
+
+
+type TPrintToTH = class(TAsync)
+private
+  _api: TApi;
+  _response: TApiResponse;
+protected
+  procedure Execute; override;
+end;
+
+procedure TPrintToTH.Execute;
+var
+  output: string;
+  nev: string;
+  pont: string;
+  line: string;
+  i: Cardinal;
+begin
+  try
+    _api := TApi.Create;
+    _response := _api.GET(baseUrl + 'toth');
+
+    if _response.success then
+    begin
+      for i := 0 to 9 do
+      begin
+        nev := _response.data.getString(['data', i, 'nev']);
+        if length(nev) = 0 then nev := '-';
+
+        pont := _response.data.getString(['data', i, 'pont']);
+        if length(pont) = 0 then pont := '';
+
+        line := inttostr(i + 1) + '. ' + nev + ' ' + pont;
+        output := output + NL + line;
+       end;
+       evalscriptline('display ' + output);
+    end;
+  finally
+    Terminate;
+  end;
+end;
+
+//-----------------------------------------------------------------------------
+// FUNCTIONS
+//-----------------------------------------------------------------------------
 
 function collerp(c1, c2:cardinal):cardinal;
 var
@@ -1612,6 +1849,20 @@ begin
       active:=true;
     end;
 
+  n:=stuffjson.GetNum(['leave_triggers']);
+  setlength(leavetriggers, n);
+  for i:=0 to n - 1 do
+    with leavetriggers[i] do
+    begin
+      name:=stuffjson.GetKey(['leave_triggers'], i);
+      pos:=D3DXVector3(stuffjson.GetFloat(['leave_triggers', name, 'pos', 'x']), stuffjson.GetFloat(['leave_triggers', name, 'pos', 'y']), stuffjson.GetFloat(['leave_triggers', name, 'pos', 'z']));
+      exitpos:=D3DXVector3(stuffjson.GetFloat(['leave_triggers', name, 'exit_pos', 'x']), stuffjson.GetFloat(['leave_triggers', name, 'exit_pos', 'y']), stuffjson.GetFloat(['leave_triggers', name, 'exit_pos', 'z']));
+      rad:=stuffjson.GetFloat(['leave_triggers', name, 'radius']);
+      vehicle:=stuffjson.GetBool(['leave_triggers', name, 'vehicle']);
+      watercraft:=stuffjson.GetBool(['leave_triggers', name, 'watercraft']);
+      teams:=LowerCase(stuffjson.GetString(['leave_triggers', name, 'teams']));
+    end;
+
 end;
 
 function loadojjektumok:boolean;
@@ -2243,6 +2494,31 @@ begin
   //g_pd3dDevice.SetTransform(D3DTS_WORLD, matWorld);
 end;
 
+procedure SetupMyCarMuksmatr;
+var
+  matWorld, matWorld2:TD3DMatrix;
+  pos:TD3DVector;
+begin
+  muks.jkez:=fegyv.jkez(myfegyv, mstat);
+  muks.bkez:=fegyv.bkez(myfegyv, mstat);
+  muks.stand(true);
+
+
+  D3DXMatrixTranslation(matWorld, ccpx, ccpy, ccpz);
+  with tegla do
+  begin
+    with matworld do
+    begin
+    _31:=axes[1].x/axehossz[1]; _32:=axes[1].y/axehossz[1]; _33:=axes[1].z/axehossz[1]; _34:=0;
+    _11:=axes[0].x/axehossz[0]; _12:=axes[0].y/axehossz[0]; _13:=axes[0].z/axehossz[0]; _14:=0;
+    _21:=axes[2].x/axehossz[2]; _22:=axes[2].y/axehossz[2]; _23:=axes[2].z/axehossz[2]; _24:=0;
+    end;
+  end;
+  D3DXMatrixRotationY(matWorld2, -d3dx_pi / 2);
+  D3DXMatrixMultiply(matWorld, matWorld2, matWorld);
+  mat_World:=matworld;
+end;
+
 procedure bubbleeffect;
 var
   vec1, vec2:TD3DXVector3;
@@ -2569,6 +2845,77 @@ begin
 
       botGroupArr[groupIndex].Add(bot);
       botIndex := botIndex + 1;
+    end;
+end;
+
+function LoadVehicleExtrasFromJson(name:string):TExtraPartsArray;
+var
+  i, j:integer;
+  tmp:string;
+begin
+  SetLength(Result, stuffjson.GetNum(['vehicle', name, 'extra_parts']));
+  for i:=0 to high(Result) do
+    with Result[i] do
+    begin
+      SetLength(pos, stuffjson.GetNum(['vehicle', name, 'extra_parts', i, 'pos']));
+      for j:=0 to high(pos) do
+        pos[j]:=D3DXVector3(stuffjson.GetFloat(['vehicle', name, 'extra_parts', i, 'pos', j, 'x']), stuffjson.GetFloat(['vehicle', name, 'extra_parts', i, 'pos', j, 'y']), stuffjson.GetFloat(['vehicle', name, 'extra_parts', i, 'pos', j, 'z']));
+      scale:=D3DXVector3(stuffjson.GetFloat(['vehicle', name, 'extra_parts', i, 'scale', 'x']), stuffjson.GetFloat(['vehicle', name, 'extra_parts', i, 'scale', 'y']), stuffjson.GetFloat(['vehicle', name, 'extra_parts', i, 'scale', 'z']));
+      tmp:=stuffjson.GetString(['vehicle', name, 'extra_parts', i, 'rotate_axis']);
+      if tmp <> '' then
+        rotateaxis:=tmp[1];
+      steeringrotate:=stuffjson.GetBool(['vehicle', name, 'extra_parts', i, 'steering_rotate']);
+      steeringflip:=stuffjson.GetBool(['vehicle', name, 'extra_parts', i, 'steering_flip']);
+      speedrotate:=stuffjson.GetBool(['vehicle', name, 'extra_parts', i, 'speed_rotate']);
+      rotatescale:=stuffjson.GetFloat(['vehicle', name, 'extra_parts', i, 'rotate_scale']);
+    end;
+end;
+
+procedure SpawnVehicle(position:TD3DXVector3;vehicletype:byte;name:string);
+begin
+  freeandnil(tegla);autoban:=true;
+  cpox^:=cpx^;cpoz^:=cpz^;cpoy^:=cpy^;
+
+  tegla:=Tauto.create(d3dxvector3(stuffjson.GetFloat(['vehicle', name, 'scale', 'x']), 0, 0),
+    d3dxvector3(0, 0, -stuffjson.GetFloat(['vehicle', name, 'scale', 'z'])),
+    d3dxvector3(0, -stuffjson.GetFloat(['vehicle', name, 'scale', 'y']), 0),
+    position,
+    d3dxvector3zero,
+    stuffjson.GetFloat(['vehicle', name, 'friction']),
+    0.5,
+    hummkerekarr,
+    stuffjson.GetFloat(['vehicle', name, 'suspension', 'length']),
+    stuffjson.GetFloat(['vehicle', name, 'suspension', 'strength']),
+    stuffjson.GetFloat(['vehicle', name, 'suspension', 'absorb']),
+    stuffjson.GetFloat(['vehicle', name, 'wheels', 'radius']),
+    stuffjson.GetFloat(['vehicle', name, 'wheels', 'width']),
+    stuffjson.GetFloat(['vehicle', name, 'wheels', 'friction']),
+    stuffjson.GetFloat(['vehicle', name, 'max_speed']),
+    stuffjson.GetFloat(['vehicle', name, 'torque']),
+    false, vehicletype);
+  tegla.parts:=LoadVehicleExtrasFromJson(name);
+end;
+
+procedure LoadVehicleExtraPartAssets;
+var
+  i, j:integer;
+  filename:string;
+  tempmesh:ID3DXMesh;
+begin
+  for i:=0 to stuffjson.GetNum(['vehicle'])-1 do
+    for j:=0 to stuffjson.GetNum(['vehicle', i, 'extra_parts'])-1 do
+    begin
+      setlength(extrapartassets, length(extrapartassets)+1);
+      extrapartassets[high(extrapartassets)].vehicletype:=1; //hardcode temporarily
+      extrapartassets[high(extrapartassets)].partnum:=j;
+      filename:=stuffjson.GetString(['vehicle', i, 'extra_parts', j, 'name']);
+
+      if FAILED(D3DXLoadMeshFromX(PAnsiChar('data/models/vehicles/'+filename+'.x'), 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+      if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL or D3DFVF_TEX1, g_pd3ddevice, extrapartassets[high(extrapartassets)].mesh)) then exit;
+      if tempmesh <> nil then tempmesh:=nil;
+      normalizemesh(extrapartassets[high(extrapartassets)].mesh);
+
+      if not LTFF(g_pd3dDevice, 'data/textures/'+filename+'.jpg', extrapartassets[high(extrapartassets)].tex, TEXFLAG_COLOR) then exit;
     end;
 end;
 
@@ -2979,6 +3326,18 @@ begin
   if FAILED(D3DXLoadMeshFromX('data/models/vehicles/kerek.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
   if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL or D3DFVF_TEX1, g_pd3ddevice, g_pkerekmesh)) then exit;
   if tempmesh <> nil then tempmesh:=nil;
+
+  addfiletochecksum('data/models/vehicles/airboat.x');
+  if FAILED(D3DXLoadMeshFromX('data/models/vehicles/airboat.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+  if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL or D3DFVF_TEX1, g_pd3ddevice, g_airboatmesh)) then exit;
+  if tempmesh <> nil then tempmesh:=nil;
+
+  addfiletochecksum('data/models/vehicles/submarine.x');
+  if FAILED(D3DXLoadMeshFromX('data/models/vehicles/submarine.x', 0, g_pd3ddevice, nil, nil, nil, nil, tempmesh)) then Exit;
+  if tempmesh = nil then exit;if FAILED(tempmesh.CloneMeshFVF(0, D3DFVF_XYZ or D3DFVF_NORMAL or D3DFVF_TEX1, g_pd3ddevice, g_submarinemesh)) then exit;
+  if tempmesh <> nil then tempmesh:=nil;
+  normalizemesh(G_airboatmesh);
+  normalizemesh(G_submarinemesh);
   normalizemesh(G_pkerekmesh);
   normalizemesh(g_pautomesh, false);
   normalizemesh(g_pantigravmesh);
@@ -3001,6 +3360,11 @@ begin
   if not LTFF(g_pd3dDevice, 'data/textures/hummer.jpg', cartex, TEXFLAG_COLOR) then exit;
   if not LTFF(g_pd3dDevice, 'data/textures/antigrav.jpg', antigravtex, TEXFLAG_COLOR) then exit;
   if not LTFF(g_pd3dDevice, 'data/textures/kerektex.jpg', kerektex, TEXFLAG_COLOR) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/airboat.jpg', airboattex, TEXFLAG_COLOR) then exit;
+  if not LTFF(g_pd3dDevice, 'data/textures/submarine.jpg', submarinetex, TEXFLAG_COLOR) then exit;
+
+  LoadVehicleExtraPartAssets;
+
   writeln(logfile, 'Loaded vehicles');
 
   result:=D3DXCreateTexture(g_pd3ddevice, SCWidth, SCheight, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, effecttexture);
@@ -4379,16 +4743,11 @@ begin
   //SELFIE
   if selfieMaker.isSelfieModeOn then
   begin
-    if dine.keyprsd(DIK_X) then
-    begin
-      //evalscriptline('fastinfo X');
-      case selfieMaker.zoomlevel of
-        CLOSE: selfieMaker.zoomlevel := NORMAL;
-        NORMAL: selfieMaker.zoomlevel := WIDE;
-        WIDE: selfieMaker.zoomlevel := CLOSE;
-      end;
-      // y u no work ??? inc(selfieMaker.zoomlevel);
-    end;
+    if dine.MousMovScrl < 0 then
+      selfieMaker.zoomlevel := min(selfieMaker.zoomlevelMax, selfieMaker.zoomlevel + 0.1)
+    else if dine.MousMovScrl > 0 then
+      selfieMaker.zoomlevel := max(selfieMaker.zoomlevelMin, selfieMaker.zoomlevel - 0.1);
+
     if dine.keyprsd(DIK_B) then selfieMaker.dab := not selfieMaker.dab;
   end;
 
@@ -4505,53 +4864,60 @@ begin
       dine.keyd(DIK_A) or dine.keyd(DIK_D) or ((cpy^ > waterlevel-0.02) and (cpy^ <= waterlevel+0.02) and ice) then
       multisc.killscamping:=multisc.kills;
 
-  if dine.keyd(DIK_F) and (not autoban){$IFNDEF speedhack} and (autobaszallhat){$ENDIF} and (halal = 0) and (length(chatmost) = 0) then
+  if dine.keyd(DIK_F) and (not autoban){$IFNDEF speedhack} and (autobaszallhat){$ENDIF} and (halal = 0) and (length(chatmost) = 0) and (not selfieMaker.isSelfieModeOn) then
   begin
     freeandnil(tegla);autoban:=true;
     cpox^:=cpx^;cpoz^:=cpz^;cpoy^:=cpy^;
 {$IFNDEF speedhack}
     tmp:=autobaszallhatpos;
+    if not watercraftbaszallhat then
     tmp.y:=advwove(tmp.x, tmp.z) + 2;
 {$ELSE}
     d3dxvec3add(tmp, d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(0, 4, 0));
 {$ENDIF}
 
-    if myfegyv < 128 then
-      tegla:=Tauto.create(d3dxvector3(stuffjson.GetFloat(['vehicle', 'gun', 'scale', 'x']), 0, 0),
-        d3dxvector3(0, 0, -stuffjson.GetFloat(['vehicle', 'gun', 'scale', 'z'])),
-        d3dxvector3(0, -stuffjson.GetFloat(['vehicle', 'gun', 'scale', 'y']), 0),
-        tmp,
-        d3dxvector3zero,
-        stuffjson.GetFloat(['vehicle', 'gun', 'friction']),
-        0.5,
-        hummkerekarr,
-        stuffjson.GetFloat(['vehicle', 'gun', 'suspension', 'length']),
-        stuffjson.GetFloat(['vehicle', 'gun', 'suspension', 'strength']),
-        stuffjson.GetFloat(['vehicle', 'gun', 'suspension', 'absorb']),
-        stuffjson.GetFloat(['vehicle', 'gun', 'wheels', 'radius']),
-        stuffjson.GetFloat(['vehicle', 'gun', 'wheels', 'width']),
-        stuffjson.GetFloat(['vehicle', 'gun', 'wheels', 'friction']),
-        stuffjson.GetFloat(['vehicle', 'gun', 'max_speed']),
-        stuffjson.GetFloat(['vehicle', 'gun', 'torque']),
-        false)
+    if watercraftbaszallhat then
+      if myfegyv < 128 then
+        SpawnVehicle(tmp, 1, 'airboat')
+      else
+        SpawnVehicle(tmp, 2, 'submarine')
     else
-      tegla:=Tauto.create(d3dxvector3(stuffjson.GetFloat(['vehicle', 'tech', 'scale', 'x']), 0, 0),
-        d3dxvector3(0, 0, -stuffjson.GetFloat(['vehicle', 'tech', 'scale', 'z'])),
-        d3dxvector3(0, -stuffjson.GetFloat(['vehicle', 'tech', 'scale', 'y']), 0),
-        tmp,
-        d3dxvector3zero,
-        stuffjson.GetFloat(['vehicle', 'tech', 'friction']),
-        0.5,
-        agkerekarr,
-        stuffjson.GetFloat(['vehicle', 'tech', 'suspension', 'length']),
-        stuffjson.GetFloat(['vehicle', 'tech', 'suspension', 'strength']),
-        stuffjson.GetFloat(['vehicle', 'tech', 'suspension', 'absorb']),
-        stuffjson.GetFloat(['vehicle', 'tech', 'wheels', 'radius']),
-        stuffjson.GetFloat(['vehicle', 'tech', 'wheels', 'width']),
-        stuffjson.GetFloat(['vehicle', 'tech', 'wheels', 'friction']),
-        stuffjson.GetFloat(['vehicle', 'tech', 'max_speed']),
-        stuffjson.GetFloat(['vehicle', 'tech', 'torque']),
-        true);
+      if myfegyv < 128 then
+        tegla:=Tauto.create(d3dxvector3(stuffjson.GetFloat(['vehicle', 'gun', 'scale', 'x']), 0, 0),
+          d3dxvector3(0, 0, -stuffjson.GetFloat(['vehicle', 'gun', 'scale', 'z'])),
+          d3dxvector3(0, -stuffjson.GetFloat(['vehicle', 'gun', 'scale', 'y']), 0),
+          tmp,
+          d3dxvector3zero,
+          stuffjson.GetFloat(['vehicle', 'gun', 'friction']),
+          0.5,
+          hummkerekarr,
+          stuffjson.GetFloat(['vehicle', 'gun', 'suspension', 'length']),
+          stuffjson.GetFloat(['vehicle', 'gun', 'suspension', 'strength']),
+          stuffjson.GetFloat(['vehicle', 'gun', 'suspension', 'absorb']),
+          stuffjson.GetFloat(['vehicle', 'gun', 'wheels', 'radius']),
+          stuffjson.GetFloat(['vehicle', 'gun', 'wheels', 'width']),
+          stuffjson.GetFloat(['vehicle', 'gun', 'wheels', 'friction']),
+          stuffjson.GetFloat(['vehicle', 'gun', 'max_speed']),
+          stuffjson.GetFloat(['vehicle', 'gun', 'torque']),
+          false)
+      else
+        tegla:=Tauto.create(d3dxvector3(stuffjson.GetFloat(['vehicle', 'tech', 'scale', 'x']), 0, 0),
+          d3dxvector3(0, 0, -stuffjson.GetFloat(['vehicle', 'tech', 'scale', 'z'])),
+          d3dxvector3(0, -stuffjson.GetFloat(['vehicle', 'tech', 'scale', 'y']), 0),
+          tmp,
+          d3dxvector3zero,
+          stuffjson.GetFloat(['vehicle', 'tech', 'friction']),
+          0.5,
+          agkerekarr,
+          stuffjson.GetFloat(['vehicle', 'tech', 'suspension', 'length']),
+          stuffjson.GetFloat(['vehicle', 'tech', 'suspension', 'strength']),
+          stuffjson.GetFloat(['vehicle', 'tech', 'suspension', 'absorb']),
+          stuffjson.GetFloat(['vehicle', 'tech', 'wheels', 'radius']),
+          stuffjson.GetFloat(['vehicle', 'tech', 'wheels', 'width']),
+          stuffjson.GetFloat(['vehicle', 'tech', 'wheels', 'friction']),
+          stuffjson.GetFloat(['vehicle', 'tech', 'max_speed']),
+          stuffjson.GetFloat(['vehicle', 'tech', 'torque']),
+          true);
 
   end;
 
@@ -5519,6 +5885,7 @@ begin
   cp:=D3DXVector3(cpx^, cpy^ * 0.5 + 0.4, cpz^);
 
   autobaszallhat:=false;
+  watercraftbaszallhat:=false;
 
   tulnagylokes:=false;
   for j:=0 to high(ojjektumnevek) do
@@ -5531,6 +5898,14 @@ begin
         (cpy^ > 0) then
       begin
         autobaszallhat:=true;
+        d3dxvec3add(autobaszallhatpos, ojjektumarr[j].holvannak[i], d3dxvector3(0, ojjektumarr[j].rad2 * 0.5 + 2, -ojjektumarr[j].rad2 - 2));
+      end;
+      if (((ojjektumflags[j] and OF_WATERCRAFTGUN) > 0) and (myfegyv < 128) or
+        ((ojjektumflags[j] and OF_WATERCRAFTTECH) > 0) and (myfegyv >= 128)) and
+        (cpy^ > 0) then
+      begin
+        autobaszallhat:=true;
+        watercraftbaszallhat:=true;
         d3dxvec3add(autobaszallhatpos, ojjektumarr[j].holvannak[i], d3dxvector3(0, ojjektumarr[j].rad2 * 0.5 + 2, -ojjektumarr[j].rad2 - 2));
       end;
       adst:=sqrt(adst);
@@ -6757,6 +7132,24 @@ begin
   vege:
 end;
 
+procedure handleleavetriggers;
+var
+  i:integer;
+begin
+  for i:=0 to Length(leavetriggers) - 1 do
+    with leavetriggers[i] do
+      if autoban then
+        if ((tegla.vehicletype = 0) and vehicle) or ((tegla.vehicletype <> 0) and watercraft) then
+          if (teams = 'both') or ((teams = 'gun') and (myfegyv < 128)) or ((teams = 'tech') and (myfegyv > 127)) then
+            if tavpointpointsq(pos, tegla.pos) < sqr(rad) then
+            begin
+              nearleavetrigger:=true;
+              leavetrigger_exitpos:= exitpos;
+              exit;
+            end;
+  nearleavetrigger:= false;
+end;
+
 procedure handleteleports;
 var
   i, k:integer;
@@ -7113,6 +7506,7 @@ begin
             if tavpointpointsq(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(posx, posy, posz)) < rad * rad then
               tuleli:=true;
           end;
+        if (tegla.vehicletype = 1) or (tegla.vehicletype = 2) then tuleli:=true;
         if (not tuleli) then
         begin
           halal:=1;
@@ -7331,7 +7725,7 @@ begin
               else
                 d3dxvec3lerp(tmp, aauto.kerekorig[2], aauto.kerekorig[3], 0.1 + 0.8 * random(1000) / 1000);
 
-              if techautoeffekt then
+              if techautoeffekt and (tegla.vehicletype = 0) then
               begin
                 tmp:=aauto.kerekorig[0];randomplus(tmp, gtc, 1);
                 tmps:=aauto.kerekorig[1];randomplus(tmps, gtc + 5, 1);
@@ -7509,6 +7903,7 @@ begin
     handleparticlesystems;
     handlelabels;
     handletriggers;
+    handleleavetriggers;
     handletimedscripts;
     propsystem.updatedynamic;
 
@@ -7613,7 +8008,8 @@ begin
     end
     else
     begin
-      kulsonezet:=false;
+      if not selfieMaker.isSelfieModeOn then
+        kulsonezet:=false;
       if vanishcar > 0 then
         inc(vanishcar);
     end;
@@ -7649,6 +8045,13 @@ begin
       vanishcar:=1;
       cpy^:=cpy^ - 1;
       cpoy^:=cpy^;
+      if nearleavetrigger and (halal = 0) then
+      begin
+        cpx^:=leavetrigger_exitpos.x;
+        cpy^:=leavetrigger_exitpos.y;
+        cpz^:=leavetrigger_exitpos.z;
+        cpox^:=cpx^;cpoy^:=cpy^;cpoz^:=cpz^;
+      end;
     end;
     if mszogx>(szogx + pi) then
       mszogx:=mszogx * 0.8 + (szogx + 2 * pi) * 0.2
@@ -8480,9 +8883,9 @@ var
 begin
   multisc.Update;
   if halal > 0 then
-    multip2p.Update(0, 0, 0, 0, 0, 0, 0, 0, 0, campos, false, not tegla.disabled, tegla.pos, tegla.vpos, tegla.axes, tegla.fordulatszam) //a tegla.pos minek?
+    multip2p.Update(0, 0, 0, 0, 0, 0, 0, 0, 0, campos, false, not tegla.disabled, tegla.pos, tegla.vpos, tegla.axes, tegla.fordulatszam, tegla.vehicletype <> 0) //a tegla.pos minek?
   else
-    multip2p.Update(cpx^, cpy^, cpz^, cpox^, cpoy^, cpoz^, szogx, szogy, mstat, campos, autoban, not tegla.disabled, tegla.pos, tegla.vpos, tegla.axes, tegla.fordulatszam);
+    multip2p.Update(cpx^, cpy^, cpz^, cpox^, cpoy^, cpoz^, szogx, szogy, mstat, campos, autoban, not tegla.disabled, tegla.pos, tegla.vpos, tegla.axes, tegla.fordulatszam, tegla.vehicletype <> 0);
 
   if multisc.kicked <> '' then
   begin
@@ -8549,6 +8952,30 @@ begin
   end;
 end;
 
+procedure changeMMOCarScaling(mi:integer; vtypename:string);
+var
+axe1,axe2,axe3:TD3DXVector3;
+i: Integer;
+begin
+  axe1:=d3dxvector3(stuffjson.GetFloat(['vehicle', vtypename, 'scale', 'x']), 0, 0);
+  axe2:=d3dxvector3(0, 0, -stuffjson.GetFloat(['vehicle', vtypename, 'scale', 'z']));
+  axe3:=d3dxvector3(0, -stuffjson.GetFloat(['vehicle', vtypename, 'scale', 'y']), 0);
+
+  with tobbiekautoi[mi] do
+  begin
+    d3dxvec3scale(axes[0],axe1,-1);
+    d3dxvec3scale(axes[1],axe2,-1);
+    d3dxvec3scale(axes[2],axe3,-1);
+
+    for i:=0 to 2 do
+      axehossz[i]:=d3dxvec3length(axes[i]);
+
+    axearany[0]:=tavpointpoint(axes[0],axes[1])*8;
+    axearany[1]:=tavpointpoint(axes[1],axes[2])*8;
+    axearany[2]:=tavpointpoint(axes[2],axes[0])*8;
+  end;
+end;
+
 procedure handleMMOcars;
 var
   i:integer;
@@ -8578,6 +9005,31 @@ begin
   for i:=0 to high(ppl) do
     with tobbiekautoi[i] do
     begin
+      if ppl[i].auto.changed then
+      begin
+        if ppl[i].auto.watercraft then
+        begin
+          if ppl[i].pls.fegyv > 127 then
+          begin
+            changeMMOCarScaling(i, 'submarine');
+            vehicletype:=2;
+            parts:=LoadVehicleExtrasFromJson('submarine');
+          end else
+          begin
+            changeMMOCarScaling(i, 'airboat');
+            vehicletype:=1;
+            parts:=LoadVehicleExtrasFromJson('airboat');
+          end;
+        end else
+        begin
+          vehicletype:=0;
+          if ppl[i].pls.fegyv > 127 then
+            changeMMOCarScaling(i, 'tech')
+          else
+            changeMMOCarScaling(i, 'gun');
+        end;
+        ppl[i].auto.changed:=false;
+      end;
 
       if ppl[i].net.avtim = 0 then ppl[i].net.avtim:=10;
       disabled:= not ppl[i].auto.enabled;
@@ -8630,9 +9082,11 @@ var
   id:cardinal;
   abuft:byte;
   hol, tmp:TD3DXVector3;
-  tt, spd:single;
+  tt:single;
   sorrend:array[0..2] of shortint;
   sortav:array[0..2] of single;
+const
+  vehiclesounds:array[0..3] of integer = (7,8,55,56);
 begin
   laststate:= 'HandleDS';
   hol:=campos;
@@ -8822,6 +9276,7 @@ begin
   begin
     if tobbiekautoi[i].agx then continue;
     if tobbiekautoi[i].disabled then continue;
+    if tobbiekautoi[i].vehicletype <> 0 then continue;
     tt:=tavpointpointsq(tobbiekautoi[i].pos, hol);
     for j:=0 to 2 do
     begin
@@ -8844,8 +9299,7 @@ begin
     if (sorrend[i] >= 0) and not gobacktomenu then
     begin
       playsound(8, false, i, false, tobbiekautoi[sorrend[i]].pos);
-      spd:=tavpointpoint(tobbiekautoi[sorrend[i]].pos, tobbiekautoi[sorrend[i]].vpos);
-      SetSoundProperties(8, i, 1, (tobbiekautoi[i].fordulatszam * 0.22 + 0.5) * 0.68, true, D3DXVector3Zero);
+      SetSoundProperties(8, i, 1, (0.3 + min(tavpointpoint(tobbiekautoi[sorrend[i]].pos, tobbiekautoi[sorrend[i]].vpos), 0.25)) * 1.8, true, D3DXVector3Zero);
     end
     else
       StopSound(8, i);
@@ -8862,6 +9316,7 @@ begin
   begin
     if not tobbiekautoi[i].agx then continue;
     if tobbiekautoi[i].disabled then continue;
+    if tobbiekautoi[i].vehicletype <> 0 then continue;
     tt:=tavpointpointsq(tobbiekautoi[i].pos, hol);
     for j:=0 to 2 do
     begin
@@ -8884,11 +9339,89 @@ begin
     if (sorrend[i] >= 0) and not gobacktomenu then
     begin
       playsound(7, false, i, false, tobbiekautoi[sorrend[i]].pos);
-      SetSoundProperties(7, i, 0, (0.3 + min(tavpointpoint(tobbiekautoi[sorrend[i]].pos, tobbiekautoi[sorrend[i]].vpos), 0.25)) * 1.36, true, D3DXVector3Zero);
+      SetSoundProperties(7, i, 0, (0.3 + min(tavpointpoint(tobbiekautoi[sorrend[i]].pos, tobbiekautoi[sorrend[i]].vpos), 0.25)) * 1.8, true, D3DXVector3Zero);
     end
     else
       StopSound(7, i);
   end;
+
+  //Watercraft/Airboat
+  for i:=0 to 2 do
+  begin
+    sorrend[i]:= -1;
+    sortav[i]:=100000;
+  end;
+
+  for i:=0 to min(high(tobbiekautoi), high(ppl)) do
+  begin
+    if tobbiekautoi[i].vehicletype <> 1 then continue;
+    if tobbiekautoi[i].disabled then continue;
+    tt:=tavpointpointsq(tobbiekautoi[i].pos, hol);
+    for j:=0 to 2 do
+    begin
+      if tt < sortav[j] then
+      begin
+        for k:=2 downto j + 1 do
+        begin
+          sortav[k]:=sortav[k - 1];
+          sorrend[k]:=sorrend[k - 1];
+        end;
+        sortav[j]:=tt;
+        sorrend[j]:=i;
+        break;
+      end;
+    end;
+  end;
+
+  for i:=0 to 2 do
+  begin
+    if (sorrend[i] >= 0) and not gobacktomenu then
+    begin
+      playsound(55, false, i, false, tobbiekautoi[sorrend[i]].pos);
+      SetSoundProperties(55, i, 1, (0.3 + min(tavpointpoint(tobbiekautoi[sorrend[i]].pos, tobbiekautoi[sorrend[i]].vpos), 0.25)) * 1.8, true, D3DXVector3Zero);
+    end
+    else
+      StopSound(55, i);
+  end;
+
+  //Watercraft/Submarine
+  for i:=0 to 2 do
+  begin
+    sorrend[i]:= -1;
+    sortav[i]:=100000;
+  end;
+
+  for i:=0 to min(high(tobbiekautoi), high(ppl)) do
+  begin
+    if tobbiekautoi[i].vehicletype <> 2 then continue;
+    if tobbiekautoi[i].disabled then continue;
+    tt:=tavpointpointsq(tobbiekautoi[i].pos, hol);
+    for j:=0 to 2 do
+    begin
+      if tt < sortav[j] then
+      begin
+        for k:=2 downto j + 1 do
+        begin
+          sortav[k]:=sortav[k - 1];
+          sorrend[k]:=sorrend[k - 1];
+        end;
+        sortav[j]:=tt;
+        sorrend[j]:=i;
+        break;
+      end;
+    end;
+  end;
+
+  for i:=0 to 2 do
+  begin
+    if (sorrend[i] >= 0) and not gobacktomenu then
+    begin
+      playsound(56, false, i, false, tobbiekautoi[sorrend[i]].pos);
+      SetSoundProperties(56, i, 1, (0.3 + min(tavpointpoint(tobbiekautoi[sorrend[i]].pos, tobbiekautoi[sorrend[i]].vpos), 0.25)) * 1.8, true, D3DXVector3Zero);
+    end
+    else
+      StopSound(56, i);
+  end; //probably át kéne írni ezt négyet egy for loopba
 
   //Player mozgás
 
@@ -8908,7 +9441,11 @@ begin
   else
     StopSound(3, 25);
 
-  if myfegyv < 128 then abuft:=8 else abuft:=7;
+  case tegla.vehicletype of
+    0: if myfegyv < 128 then abuft:=8 else abuft:=7;
+    1: abuft:=55;
+    2: abuft:=56;
+  end;
 
   if not tegla.disabled then
   begin
@@ -8919,8 +9456,9 @@ begin
   else
     StopSound(abuft, 125);
 
-  StopSound(15 - abuft, 125);
-
+  for i:=0 to high(vehiclesounds) do
+    if vehiclesounds[i] <> abuft then
+      StopSound(vehiclesounds[i], 125);
 
   if ((felho.coverage <= 5) and not winter) or ((felho.coverage < 2) and winter) then
   begin
@@ -8987,11 +9525,20 @@ begin
   // origin, and define "up" to be in the y-direction.    //campos camvec camcamcam
   vEyePt:=D3DXVector3(acpx + halal, acpy + 1.5 + halal / 3, acpz + halal);
   if kulsonezet then
-    vEyePt:=D3DXVector3(acpx - sin(szogx) * cos(szogy) * 15, acpy + 1.5 - sin(szogy) * 15, acpz - cos(szogx) * cos(szogy) * 15);
+    if selfieMaker.isSelfieModeOn then
+    begin
+      if selfieMaker.zoomlevel = selfieMaker.zoomlevelMin then
+        vEyePt:=D3DXVector3(acpx - sin(szogx) * cos(szogy) * selfieMaker.zoomlevel, acpy + 1.5 - sin(szogy) * 1.5, acpz - cos(szogx) * cos(szogy) * selfieMaker.zoomlevel)
+      else
+        vEyePt:=D3DXVector3(acpx - sin(szogx) * selfieMaker.zoomlevel, acpy + 1.5 - sin(szogy) * selfieMaker.zoomlevel, acpz - cos(szogx) * selfieMaker.zoomlevel);
+    end
+    else
+      vEyePt:=D3DXVector3(acpx - sin(szogx) * cos(szogy) * 15, acpy + 1.5 - sin(szogy) * 15, acpz - cos(szogx) * cos(szogy) * 15);
 
   vLookatPt:=D3DXVector3(acpx + sin(szogx) * cos(szogy), acpy + 1.5 + sin(szogy), cos(szogx) * cos(szogy) + acpz);
   if halal > 0 then
   begin
+    selfieMaker.isSelfieModeOn := false;
     rbid:=getrongybababyID(0);
     if rbid >= 0 then
     begin
@@ -10312,6 +10859,11 @@ begin
         Drawmessage(lang[46], $FF000000 + betuszin);
         if tavpointpointsq(tegla.pos, tegla.vpos) > sqr(0.1) then
           Drawmessage(lang[47], $FFFF0000);
+      end;
+
+      if nearleavetrigger then
+      begin
+        drawmessage(lang[111], $FF000000 + betuszin);
       end
     end;
     if recovercar > 0 then
@@ -10753,8 +11305,8 @@ end;
 
 procedure renderAutok(enyem:boolean);
 var
-  i, j:integer;
-  sautok, antigravok:array of Tauto;
+  i, j, k:integer;
+  sautok, antigravok, airboats, submarines:array of Tauto;
 begin
 
   laststate:= 'RenderAutok';
@@ -10764,15 +11316,30 @@ begin
 
   if enyem then
     if not tegla.disabled then
-      if myfegyv < 128 then
-      begin
-        g_pd3ddevice.SetTexture(0, cartex);
-        g_pautomesh.DrawSubset(0);
-      end
-      else
-      begin
-        g_pd3ddevice.SetTexture(0, antigravtex);
-        g_pantigravmesh.DrawSubset(0);
+      case tegla.vehicletype of
+        0:
+        begin
+          if myfegyv < 128 then
+          begin
+            g_pd3ddevice.SetTexture(0, cartex);
+            g_pautomesh.DrawSubset(0);
+          end
+          else
+          begin
+            g_pd3ddevice.SetTexture(0, antigravtex);
+            g_pantigravmesh.DrawSubset(0);
+          end;
+        end;
+        1:
+        begin
+          g_pd3ddevice.SetTexture(0, airboattex);
+          g_airboatmesh.DrawSubset(0);
+        end;
+        2:
+        begin
+          g_pd3ddevice.SetTexture(0, submarinetex);
+          g_submarinemesh.DrawSubset(0);
+        end;
       end;
 
 
@@ -10782,17 +11349,46 @@ begin
       if high(tobbiekautoi) < i then continue;
       if tobbiekautoi[i] = nil then continue;
       if tobbiekautoi[i].disabled then continue;
-      if not tobbiekautoi[i].agx then
-      begin
-        setlength(sautok, length(sautok) + 1);
-        sautok[high(sautok)]:=tobbiekautoi[i];
-      end
-      else
-      begin
-        setlength(antigravok, length(antigravok) + 1);
-        antigravok[high(antigravok)]:=tobbiekautoi[i];
-      end
+      case tobbiekautoi[i].vehicletype of
+        0:
+        begin
+          if not tobbiekautoi[i].agx then
+          begin
+            setlength(sautok, length(sautok) + 1);
+            sautok[high(sautok)]:=tobbiekautoi[i];
+          end
+          else
+          begin
+            setlength(antigravok, length(antigravok) + 1);
+            antigravok[high(antigravok)]:=tobbiekautoi[i];
+          end;
+        end;
+        1:
+        begin
+          setlength(airboats, length(airboats) + 1);
+          airboats[high(airboats)]:=tobbiekautoi[i];
+        end;
+        2:
+        begin
+          setlength(submarines, length(submarines) + 1);
+          submarines[high(submarines)]:=tobbiekautoi[i];
+        end;
+      end;
     end;
+
+  g_pd3ddevice.SetTexture(0, airboattex);
+  for i:=0 to high(airboats) do
+  begin
+    g_pd3dDevice.SetTransform(D3DTS_WORLD, airboats[i].matrixfromaxes);
+    g_airboatmesh.DrawSubset(0);
+  end;
+
+  g_pd3ddevice.SetTexture(0, submarinetex);
+  for i:=0 to high(submarines) do
+  begin
+    g_pd3dDevice.SetTransform(D3DTS_WORLD, submarines[i].matrixfromaxes);
+    g_submarinemesh.DrawSubset(0);
+  end;
 
   g_pd3ddevice.SetTexture(0, cartex);
   for i:=0 to high(sautok) do
@@ -10808,16 +11404,48 @@ begin
     g_pantigravmesh.DrawSubset(0);
   end;
 
+  if enyem then
+    if not tegla.disabled then
+      for i:=0 to high(extrapartassets) do
+        if extrapartassets[i].vehicletype = tegla.vehicletype then
+          begin
+            g_pd3ddevice.SetTexture(0, extrapartassets[i].tex);
+            for j:=0 to high(tegla.parts[extrapartassets[i].partnum].pos) do
+            begin
+              g_pd3dDevice.SetTransform(D3DTS_WORLD, tegla.extrapartsmatrix(extrapartassets[i].partnum, j));
+              extrapartassets[i].mesh.DrawSubset(0);
+            end;
+          end;
+
+  if not enyem then
+    for i:=0 to high(ppl) do
+    begin
+      if high(tobbiekautoi) < i then continue;
+      if tobbiekautoi[i] = nil then continue;
+      if tobbiekautoi[i].disabled then continue;
+      for j:=0 to high(extrapartassets) do
+        if extrapartassets[j].vehicletype = tobbiekautoi[i].vehicletype then
+        begin
+          g_pd3ddevice.SetTexture(0, extrapartassets[j].tex);
+          for k:=0 to high(tobbiekautoi[i].parts[extrapartassets[j].partnum].pos) do
+          begin
+            g_pd3dDevice.SetTransform(D3DTS_WORLD, tobbiekautoi[i].extrapartsmatrix(extrapartassets[j].partnum, k, true));
+            extrapartassets[j].mesh.DrawSubset(0);
+          end;
+        end;
+    end;
+
   g_pd3ddevice.SetTexture(0, kerektex);
 
   if enyem then
     if myfegyv < 128 then
       if not tegla.disabled then
-        for i:=0 to 3 do
-        begin
-          g_pd3dDevice.SetTransform(D3DTS_WORLD, tegla.kerektransformmatrix(i));
-          g_pkerekmesh.DrawSubset(0);
-        end;
+        if tegla.vehicletype = 0 then
+          for i:=0 to 3 do
+          begin
+            g_pd3dDevice.SetTransform(D3DTS_WORLD, tegla.kerektransformmatrix(i));
+            g_pkerekmesh.DrawSubset(0);
+          end;
 
   if not enyem then
     for j:=0 to high(sautok) do
@@ -11721,7 +12349,7 @@ begin
     (if lightIntensity > 0 then lightIntensity:=max(0, lightIntensity - 0.04));
 
   //hát, ez elõre kell. pont.
-  if (opt_water > 0) and not ice then
+  if (opt_water > 0) and (not ice) and (waterlevel < 20) then
     Renderreflectiontex;
 
   //###################
@@ -11979,7 +12607,15 @@ begin
           if not nofegyv then
             rendermykez;
       laststate:= 'rendermykez';
+      //if (myfegyv < 128) and autoban and (tegla.vehicletype = 1) then // airboat musk render
+      //begin
+        //SetupMyCarMuksmatr;
+        //g_pd3dDevice.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+        //g_pd3dDevice.SetTransform(D3DTS_WORLD, tegla.matrixfromaxes);
+        //muks.Render(gunszin, mat_world, pos);
+      //end;
       pos:=D3DXVector3(cpx^, cpy^, cpz^);
+      
       for i:=0 to rbszam do
         if abs(rongybabak[i].gmbk[10].y - cpy^) < 100 then
         begin
@@ -11998,7 +12634,7 @@ begin
       for i:=0 to high(ppl) do
       begin
         if ppl[i].pls.autoban then ppl[i].pls.visible:=false;
-        if ppl[i].pls.visible then
+        if ppl[i].pls.visible then//or (ppl[i].pls.autoban and ppl[i].auto.watercraft and (ppl[i].pls.fegyv < 128)) then// airboat musk render
           if tavpointpointsq(ppl[i].pos.pos, campos) < sqr(500) then
           begin
             Rendermuks(i, ppl[i].pos.state, ppl[i].pls.fegyv); //nem skin mert ez a babu szine
@@ -12143,21 +12779,24 @@ begin
       noobmesh.DrawSubset(0);
     end;
 
-
-    g_pd3dDevice.SetRenderState(D3DRS_TEXTUREFACTOR, $FFFF5050);
-    for i:=0 to high(noobproj) do
+     if (menu.lap = -1) then //MENÜBÕL nem kéne...
     begin
-      setupnoobmat(i);
-      noobmesh.DrawSubset(0);
-    end;
+      g_pd3dDevice.SetRenderState(D3DRS_TEXTUREFACTOR, $FFFF5050);
+      for i:=0 to high(noobproj) do
+      begin
+        setupnoobmat(i);
+        noobmesh.DrawSubset(0);
+      end;
 
-    if (myfegyv = FEGYV_NOOB) and (lovok > 0) then
-    begin
-      setupnoobtoltmat;
-      setupmyfegyvprojmat;
-      noobmesh.DrawSubset(0);
-      setupprojmat;
+   
+      if (myfegyv = FEGYV_NOOB) and (lovok > 0) then
+      begin
+        setupnoobtoltmat;
+        setupmyfegyvprojmat;
+        noobmesh.DrawSubset(0);
+        setupprojmat;
     end;
+     end;
 
 
     g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
@@ -12498,7 +13137,7 @@ begin
       if (menu.lap = -1) then //MENÜBÕL nem kéne...
       begin
         setupmyfegyvprojmat;
-        if (myfegyv = FEGYV_NOOB) and not nofegyv and (not autoban) and (halal = 0) then
+        if (myfegyv = FEGYV_NOOB) and not nofegyv and not kulsonezet and (not autoban) and (halal = 0) then
         begin
 
           g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -13375,6 +14014,7 @@ begin
   halal:=0;
   spectate:=0;
   mapmode:=0;
+  selfieMaker.isSelfieModeOn:=false;
   mapbol:=false;
 
   if volttim = 0 then volttim:=timegettime;
@@ -13705,6 +14345,7 @@ var
     varname:string;
   begin
     result:=input;
+    if length(input) < 2 then exit;
     if input[1] = '%' then
     begin
       varname:=copy(input, 2, length(input) - 1);
@@ -14331,7 +14972,7 @@ var
                             exit;
                           end
                           else
-
+                                   {
                           //submit api communication
                           if (args[0] = 'submit') then
                           begin
@@ -14355,6 +14996,17 @@ var
                           end
                           else
 
+                          //spawn airboat/submarine
+                          if (args[0] = 'watercraft') and (Length(args) > 3) then
+                          begin
+                            if myfegyv > 127 then
+                              SpawnVehicle(computevecs(copy(args, 1, argnum - 1)), 2, 'airboat')
+                            else
+                              SpawnVehicle(computevecs(copy(args, 1, argnum - 1)), 1, 'submarine');
+                            exit;
+                          end
+                          else
+                                  }
                             //hang
                             if (args[0] = 'sound') and (Length(args) > 4) then
                             begin
@@ -14388,17 +15040,18 @@ var
 
   end;
 
-  procedure handleparancsok(var mit:String);
-  var
-    i:integer;
+procedure handleparancsok(var mit:String);
+var
+   tmp: string;
+   i:integer;
   {$IFDEF propeditor}
     j, k:integer;
   {$ENDIF}
   begin
-
+            {
     if pos(' /practice', mit) = 1 then
       mit:= ' /join Practice-' + inttohex(random(35536), 4);
-
+         }
     if pos(' /nohud', mit) = 1 then
       nohud:= not nohud;
 
@@ -14429,12 +15082,93 @@ var
 
       selfieMaker.toggle;
       szogx := szogx + D3DX_PI;
-      nofegyv := selfieMaker.isSelfieModeOn;
-      selfieMaker.zoomlevel := NORMAL;
+      kulsonezet := selfieMaker.isSelfieModeOn;
+      selfieMaker.zoomlevel := 2;
       selfieMaker.dab := FALSE;
     end;
+    {
+    if pos(' /boat', mit) = 1 then
+    begin
+      SpawnVehicle(d3dxvector3(-335, waterlevel, -60),1,'airboat');
+    end;
 
-    if pos(' //', mit) = 1 then evalscriptline(copy(mit, 4, length(mit) - 3));
+    if pos(' /sub', mit) = 1 then
+    begin
+      SpawnVehicle(d3dxvector3(-335, waterlevel, -60),2,'submarine');
+    end;
+     
+	if pos(' //', mit) = 1 then evalscriptline(copy(mit, 4, length(mit) - 3));
+      }
+
+    {
+    //EXAMPLE
+    if pos(' /servertime', mit) = 1 then
+    begin
+      TPrintServerTimeThread.Create(FALSE);
+    end;
+    }
+
+    if pos(' /havitop', mit) = 1 then
+    begin
+      TPrintTopThread.Create(FALSE, TOP_MONTHLY);
+    end; 
+
+    if pos(' /hetitop', mit) = 1 then
+    begin
+      TPrintTopThread.Create(FALSE, TOP_WEEKLY);
+    end;
+
+    if pos(' /napitop', mit) = 1 then
+    begin
+      TPrintTopThread.Create(FALSE, TOP_DAILY);
+    end;
+
+    if pos(' /top', mit) = 1 then
+    begin
+      TPrintTopThread.Create(FALSE);
+    end;
+
+    if pos(' /rank', mit) = 1 then
+    begin
+      tmp := '';
+      for i:=0 to high(ppl) do
+        if (ppl[i].net.UID = 0) then tmp := ppl[i].pls.nev;
+      TPrintRank.Create(FALSE, tmp);
+    end;
+
+    if pos(' /rank napi', mit) = 1 then
+    begin
+      tmp := '';
+      for i:=0 to high(ppl) do
+        if (ppl[i].net.UID = 0) then tmp := ppl[i].pls.nev;
+      TPrintRank.Create(FALSE, tmp, TOP_DAILY);
+    end;
+
+    if pos(' /rank heti', mit) = 1 then
+    begin
+      tmp := '';
+      for i:=0 to high(ppl) do
+        if (ppl[i].net.UID = 0) then tmp := ppl[i].pls.nev;
+      TPrintRank.Create(FALSE, tmp, TOP_WEEKLY);
+    end;
+
+    if pos(' /rank havi', mit) = 1 then
+    begin
+      tmp := '';
+      for i:=0 to high(ppl) do
+        if (ppl[i].net.UID = 0) then tmp := ppl[i].pls.nev;
+      TPrintRank.Create(FALSE, tmp, TOP_MONTHLY);
+    end; 
+
+    if pos(' /koth', mit) = 1 then
+    begin
+      TPrintKoTH.Create(FALSE);
+    end;
+
+    if pos(' /toth', mit) = 1 then
+    begin
+      TPrintToTH.Create(FALSE);
+    end;
 
 {$IFDEF propeditor}
     if pos(' /p', mit) = 1 then
@@ -15536,7 +16270,7 @@ begin //                 BEGIIIN
 
     assignfile(logfile, 'log.txt');
     rewrite(logfile);
-    writeln(logfile, 'Stickman Warfare v2.' + inttostr((PROG_VER div 1000) mod 100) + '.' + inttostr((PROG_VER div 10) mod 100) + ' (' + inttohex(-exe_checksum, 8) + '). Log file.');
+    writeln(logfile, 'Stickman Warfare v' + inttostr(PROG_VER div 100000) + '.' + inttostr((PROG_VER div 1000) mod 100) + '.' + inttostr((PROG_VER div 10) mod 100) + '.' + inttostr(PROG_VER mod 10) + ' (' + inttohex(-exe_checksum, 8) + '). Log file.');
     writeln(logfile, '---------------------------------------');
 
     writeln(logfile, 'Game started at:', formatdatetime('yyyy.mm.dd/hh:nn:ss', date + time));
