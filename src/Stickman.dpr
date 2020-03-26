@@ -293,6 +293,7 @@ var
   windowrect:Trect;
   misteryNumber:longint;
   noborder:boolean;
+  vsyncon:boolean;
 {$IFDEF palyszerk}
   epuletmost:integer;
 {$ENDIF}
@@ -726,7 +727,10 @@ begin
   d3dpp.BackBufferHeight:=SCheight;
   d3dpp.SwapEffect:=D3DSWAPEFFECT_COPY;
   d3dpp.EnableAutoDepthStencil:=True;
-  d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_IMMEDIATE;
+  if vsyncon then
+    d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_ONE
+  else
+    d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_IMMEDIATE;
 
   if not iswindowed then
   begin
@@ -16109,6 +16113,7 @@ end;   {}
     texture_res:=TEXTURE_VERYHIGH;
     isnormals:=true;
     iswindowed:=false;
+    vsyncon:=false;
     useoldterrain:=false;
     ASPECT_RATIO:=SCwidth / SCheight;
 
@@ -16134,6 +16139,7 @@ end;   {}
         if (l2 = 'oldterrain') then useoldterrain:=strtoint(copy(line, pos('=', line) + 1, length(line))) = 1;
         if (l2 = 'langid') then nyelv:=strtoint(copy(line, pos('=', line) + 1, length(line))) and $3FF;
         if (l2 = 'texture_res') then texture_res:=strtoint(copy(line, pos('=', line) + 1, length(line)));
+        if (l2 = 'vsync') then vsyncon:=strtoint(copy(line, pos('=', line) + 1, length(line))) = 1;
 
         if texture_res = TEXTURE_LOW_LEG then texture_res:=TEXTURE_LOW;
         if texture_res = TEXTURE_MED_LEG then texture_res:=TEXTURE_MED;
