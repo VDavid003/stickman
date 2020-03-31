@@ -294,6 +294,7 @@ var
   misteryNumber:longint;
   noborder:boolean;
   vsyncon:boolean;
+  FPSLimit:double;
 {$IFDEF palyszerk}
   epuletmost:integer;
 {$ENDIF}
@@ -425,6 +426,9 @@ var
   QPC_start:TLargeInteger;
   QPC_stop:TLargeInteger;
   QPC_frequency, fps:TLargeInteger;
+
+  FPSLimiter_Start:TLargeInteger;
+  FPSLimiter_Stop:TLargeInteger;
 
 
 {$IFDEF profiler}
@@ -13303,6 +13307,7 @@ end;
 procedure GameLoop;
 var
   d3derr:integer;
+  previousPresentTime:TLargeInteger;
 begin
 {$IFDEF profiler}
   QueryPerformanceCounter(profile_start);
@@ -13330,7 +13335,15 @@ begin
   profile_render:=(MSecsPerSec * (profile_stop - profile_start)) div profile_frequency;
 {$ENDIF}
 
+  if FPSLimit <> 0 then
+  begin
+    previousPresentTime:= FPSLimiter_Start - FPSLimiter_Stop;
+    repeat
+      QueryPerformanceCounter(FPSLimiter_Stop);
+    until (FPSLimiter_Stop - FPSLimiter_Start + previousPresentTime) / QPC_frequency >= 1/FPSLimit;
+  end;
   d3derr:=g_pd3dDevice.Present(nil, nil, 0, nil);
+  QueryPerformanceCounter(FPSLimiter_Start);
   // Present the backbuffer contents to the display
   lostdevice:=lostdevice or (D3DERR_DEVICELOST = d3derr);
 end;
@@ -14047,6 +14060,8 @@ begin
 end;
 
 procedure Menuloop;
+var
+  previousPresentTime:Integer;
 begin
   laststate:= 'HMC';
   handlemenuclicks;
@@ -14088,7 +14103,16 @@ begin
 
   menu.Draw;
 
+  if FPSLimit <> 0 then
+  begin
+    previousPresentTime:= FPSLimiter_Start - FPSLimiter_Stop;
+    repeat
+      QueryPerformanceCounter(FPSLimiter_Stop);
+    until (FPSLimiter_Stop - FPSLimiter_Start + previousPresentTime) / QPC_frequency >= 1/FPSLimit;
+  end;
+
   g_pd3dDevice.Present(nil, nil, 0, nil);
+  QueryPerformanceCounter(FPSLimiter_Start);
 end;
 
 procedure InitMenuScene;
@@ -16114,6 +16138,7 @@ end;   {}
     isnormals:=true;
     iswindowed:=false;
     vsyncon:=false;
+    FPSLimit:=0;
     useoldterrain:=false;
     ASPECT_RATIO:=SCwidth / SCheight;
 
@@ -16140,6 +16165,7 @@ end;   {}
         if (l2 = 'langid') then nyelv:=strtoint(copy(line, pos('=', line) + 1, length(line))) and $3FF;
         if (l2 = 'texture_res') then texture_res:=strtoint(copy(line, pos('=', line) + 1, length(line)));
         if (l2 = 'vsync') then vsyncon:=strtoint(copy(line, pos('=', line) + 1, length(line))) = 1;
+        if (l2 = 'fps_max') then FPSLimit:=strtofloat(copy(line, pos('=', line) + 1, length(line)));
 
         if texture_res = TEXTURE_LOW_LEG then texture_res:=TEXTURE_LOW;
         if texture_res = TEXTURE_MED_LEG then texture_res:=TEXTURE_MED;
@@ -16484,6 +16510,9 @@ begin //                 BEGIIIN
       fsettings.DecimalSeparator:= '.';
 
       writeln(logfile, 'Loaded menu');flush(logfile);
+
+      QueryPerformanceFrequency(QPC_frequency);
+
       menu.DrawLoadScreen(0);
       if SUCCEEDED(InitializeAll) then
       begin
@@ -16640,8 +16669,6 @@ begin //                 BEGIIIN
           AFstart;
 
         multisc.opt_nochat:=opt_nochat;
-
-        QueryPerformanceFrequency(QPC_frequency);
 
 {$IFDEF profiler}
         QueryPerformanceFrequency(profile_frequency);
