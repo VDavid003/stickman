@@ -23,7 +23,6 @@
 {.$DEFINE fegyverteszt}
 {.$DEFINE terraineditor}
 {.$DEFINE watercraftcommands}
-{.$DEFINE uncapFPS} //This also uncaps physics - be careful
 
 program Stickman;
 
@@ -63,9 +62,6 @@ uses
   BotGroups,
   Selfie,
   stickApi;
-
-//StopWatch //TODO: kivenni
-
 
 const
   lvlmin = 0; //ENNEK ÍGY KÉNE MARADNIA
@@ -294,6 +290,7 @@ var
   windowrect:Trect;
   misteryNumber:longint;
   noborder:boolean;
+  vsyncon:boolean;
 {$IFDEF palyszerk}
   epuletmost:integer;
 {$ENDIF}
@@ -425,12 +422,12 @@ var
   QPC_start:TLargeInteger;
   QPC_stop:TLargeInteger;
   QPC_frequency, fps:TLargeInteger;
-
+  FPSLimiter_START:TLargeInteger;
+  FPSLimiter_STOP:TLargeInteger;
 
 {$IFDEF profiler}
   profile_start:TLargeInteger;
   profile_stop:TLargeInteger;
-  profile_frequency:TLargeInteger;
   profile_mecha:TLargeInteger;
   profile_render:TLargeInteger;
 {$ENDIF}
@@ -727,7 +724,10 @@ begin
   d3dpp.BackBufferHeight:=SCheight;
   d3dpp.SwapEffect:=D3DSWAPEFFECT_COPY;
   d3dpp.EnableAutoDepthStencil:=True;
-  d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_IMMEDIATE;
+  if vsyncon then
+    d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_ONE
+  else
+    d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_IMMEDIATE;
 
   if not iswindowed then
   begin
@@ -7492,7 +7492,8 @@ begin
   gtc:=gettickcount;
   //evalscriptline('fastinfo ' + intToStr(gtc));
   korlat:=0;
-  repeat
+  while not (((hanyszor + 1) * 10 > timegettime) or ((korlat + 1) > 20)) do
+  begin
     inc(hanyszor);
 
     // if playrocks>1 then playrocks:=1;
@@ -8685,18 +8686,11 @@ end;
 
     // until (hanyszor*10>timegettime) or (korlat>20);
     inc(korlat);
-  until (hanyszor * 10 > timegettime) or (korlat > 20);
+  end;
   //////////
 
   if rbszam > 30 then delrongybaba(-1);
   hvolt:=false;
-{$IFNDEF uncapFPS}
-  i:=hanyszor * 10 - timegettime;
-
-  if i > 0 then sleep(i)
-  else
-    hanyszor:=timegettime div 10;
-{$ENDIF}
   anticheat2:=round(time * 86400000) - timegettime;
 
   if abs(anticheat1 - anticheat2) > 5000 then
@@ -13264,10 +13258,6 @@ begin
   end;
 end;
 
-
-
-
-
 function exe_checksum:integer;
 var
   addr:dword;
@@ -13305,7 +13295,7 @@ end;
 
 procedure GameLoop;
 var
-  d3derr:integer;
+  d3derr, previousPresentTime:integer;
 begin
 {$IFDEF profiler}
   QueryPerformanceCounter(profile_start);
@@ -13316,7 +13306,7 @@ begin
 
 {$IFDEF profiler}
   QueryPerformanceCounter(profile_stop);
-  profile_mecha:=(MSecsPerSec * (profile_stop - profile_start)) div profile_frequency;
+  profile_mecha:=(MSecsPerSec * (profile_stop - profile_start)) div QPC_frequency;
   QueryPerformanceCounter(profile_start);
 {$ENDIF}     
 
@@ -13330,11 +13320,20 @@ begin
 
 {$IFDEF profiler}
   QueryPerformanceCounter(profile_stop);
-  profile_render:=(MSecsPerSec * (profile_stop - profile_start)) div profile_frequency;
+  profile_render:=(MSecsPerSec * (profile_stop - profile_start)) div QPC_frequency;
 {$ENDIF}
 
-  d3derr:=g_pd3dDevice.Present(nil, nil, 0, nil);
+  if FPSLimit >= FPS_MIN then
+  begin
+    previousPresentTime:= FPSLimiter_START - FPSLimiter_STOP;
+    repeat
+      QueryPerformanceCounter(FPSLimiter_STOP);
+    until (FPSLimiter_STOP - FPSLimiter_START + previousPresentTime) / QPC_frequency >= 1/FPSLimit;
+  end;
   // Present the backbuffer contents to the display
+  d3derr:=g_pd3dDevice.Present(nil, nil, 0, nil);
+  QueryPerformanceCounter(FPSLimiter_START);
+  
   lostdevice:=lostdevice or (D3DERR_DEVICELOST = d3derr);
 end;
 
@@ -14050,6 +14049,8 @@ begin
 end;
 
 procedure Menuloop;
+var
+  previousPresentTime:integer;
 begin
   laststate:= 'HMC';
   handlemenuclicks;
@@ -14091,7 +14092,16 @@ begin
 
   menu.Draw;
 
+  if FPSLimit >= FPS_MIN then
+  begin
+    previousPresentTime:= FPSLimiter_START - FPSLimiter_STOP;
+    repeat
+      QueryPerformanceCounter(FPSLimiter_STOP);
+    until (FPSLimiter_STOP - FPSLimiter_START + previousPresentTime) / QPC_frequency >= 1/FPSLimit;
+  end;
+
   g_pd3dDevice.Present(nil, nil, 0, nil);
+  QueryPerformanceCounter(FPSLimiter_START);
 end;
 
 procedure InitMenuScene;
@@ -16116,6 +16126,7 @@ end;   {}
     texture_res:=TEXTURE_VERYHIGH;
     isnormals:=true;
     iswindowed:=false;
+    vsyncon:=false;
     useoldterrain:=false;
     ASPECT_RATIO:=SCwidth / SCheight;
 
@@ -16141,10 +16152,8 @@ end;   {}
         if (l2 = 'oldterrain') then useoldterrain:=strtoint(copy(line, pos('=', line) + 1, length(line))) = 1;
         if (l2 = 'langid') then nyelv:=strtoint(copy(line, pos('=', line) + 1, length(line))) and $3FF;
         if (l2 = 'texture_res') then texture_res:=strtoint(copy(line, pos('=', line) + 1, length(line)));
-
-        if texture_res = TEXTURE_LOW_LEG then texture_res:=TEXTURE_LOW;
-        if texture_res = TEXTURE_MED_LEG then texture_res:=TEXTURE_MED;
-        if texture_res = TEXTURE_HIGH_LEG then texture_res:=TEXTURE_HIGH;
+        if (l2 = 'vsync') then vsyncon:=strtoint(copy(line, pos('=', line) + 1, length(line))) = 1;
+        if (l2 = 'fpslimit') then FPSLimit:=strtoint(copy(line, pos('=', line) + 1, length(line)));
 
       end;
       closefile(fil);
@@ -16153,7 +16162,8 @@ end;   {}
     pixelY:=1 / SCheight;
     ASPECT_RATIO:=SCwidth / SCheight;
     vertScale:=SCheight / 600;
-
+    if FPSLimit > FPS_MAX then
+      FPSLimit := 0;
 {$IFDEF oldterrain}
     useoldterrain:=true;
 {$ENDIF}
@@ -16251,6 +16261,7 @@ begin //                 BEGIIIN
     //Hacking checking
     errorospointer:=@ahovaajopointermutat;
 
+    
 
     if not (canbeadmin and commandlineoption(chr(120))) then
     begin
@@ -16265,6 +16276,8 @@ begin //                 BEGIIIN
       exit;
     end;
     checksum:=0;
+    
+    QueryPerformanceFrequency(QPC_frequency);
 
     //more initialization
     heavyLOD:={$IFDEF heavyLOD}true{$ELSE}false{$ENDIF};
@@ -16485,6 +16498,7 @@ begin //                 BEGIIIN
       fsettings.DecimalSeparator:= '.';
 
       writeln(logfile, 'Loaded menu');flush(logfile);
+
       menu.DrawLoadScreen(0);
       if SUCCEEDED(InitializeAll) then
       begin
@@ -16641,12 +16655,6 @@ begin //                 BEGIIIN
           AFstart;
 
         multisc.opt_nochat:=opt_nochat;
-
-        QueryPerformanceFrequency(QPC_frequency);
-
-{$IFDEF profiler}
-        QueryPerformanceFrequency(profile_frequency);
-{$ENDIF}
 
         SetMainVolume(menufi[MI_VOL].elx);
         laststate:= 'Initialzing game 5';
