@@ -15,8 +15,8 @@ uses
   qjson;
 
 const
-  PROG_VER=210000;
-  datachecksum=$CF484AA7;
+  PROG_VER=210010;
+  datachecksum=$CB1D3A7E;
 
 type
 
@@ -265,7 +265,6 @@ type
     axes,vaxes:array[0..2] of TD3DXVector3;
     fordszam:single;
     watercraft:bool;
-    changed:bool;
   end;
 
   Tplayer=record
@@ -651,10 +650,12 @@ var
   cloudblend:single;
 
   vizkor1,vizkor2,vizkor3:single;
+
+  FPSLimit:cardinal = 0;
 const
-  TEXTURE_LOW_LEG=0;
-  TEXTURE_MED_LEG=1;
-  TEXTURE_HIGH_LEG=2;
+  //FPS limiter
+  FPS_MAX=500; 
+  FPS_MIN=30; // >0 !!
 
   TEXTURE_COLOR=99;
   TEXTURE_SUPERLOW=100;

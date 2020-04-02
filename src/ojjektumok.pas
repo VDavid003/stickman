@@ -126,6 +126,8 @@ type
     posx, posy, posz:single;
     rad:single;
     gomb:ID3DXMesh;
+    nofog:boolean;
+    grass:boolean;
   end;
 
   Tground = record

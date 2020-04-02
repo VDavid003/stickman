@@ -22,6 +22,7 @@
 {.$DEFINE oldterrain}
 {.$DEFINE fegyverteszt}
 {.$DEFINE terraineditor}
+{.$DEFINE watercraftcommands}
 
 program Stickman;
 
@@ -62,16 +63,12 @@ uses
   Selfie,
   stickApi;
 
-//StopWatch //TODO: kivenni
-
-
 const
   lvlmin = 0; //ENNEK ÍGY KÉNE MARADNIA
   lvlmax = 6;
   lvlsiz = 32; //Ennek is :(
   lvlsizp = lvlsiz + 1;
   farlvl = 4;
-  fuszam = 10;
   fuszin = $00FFFFFF;
   koszin = $FFFFFFFE;
   lvmi = lvlsiz div 4;
@@ -292,6 +289,7 @@ var
   windowrect:Trect;
   misteryNumber:longint;
   noborder:boolean;
+  vsyncon:boolean;
 {$IFDEF palyszerk}
   epuletmost:integer;
 {$ENDIF}
@@ -328,8 +326,7 @@ var
   recovercar, vanishcar, kiszallas:integer;
   latszonazF, latszonazR:word;
   volthi, voltspeeder, voltbasejump:boolean;
-  nearleavetrigger:boolean = false;
-  leavetrigger_exitpos:TD3DXVector3;
+  currentleavetrigger:integer = -1;
 
 
   tegla:Tauto;
@@ -416,19 +413,20 @@ var
   col_fog_sunny, col_fog_rainy, col_fog_water, radius_rainy, radius_sunny:longword;
   col_grass, col_mud, col_sand, col_wetsand, col_water, col_stone:longword;
 
-
-
   nemviz:boolean;
 
-  //timing stats
-  frametime:cardinal;
-  framecount, fps:integer;
   opt_drawfps:boolean = false;
+  framecount:integer;
+  frametime:cardinal;
+  QPC_start:TLargeInteger;
+  QPC_stop:TLargeInteger;
+  QPC_frequency, fps:TLargeInteger;
+  FPSLimiter_START:TLargeInteger;
+  FPSLimiter_STOP:TLargeInteger;
 
 {$IFDEF profiler}
   profile_start:TLargeInteger;
   profile_stop:TLargeInteger;
-  profile_frequency:TLargeInteger;
   profile_mecha:TLargeInteger;
   profile_render:TLargeInteger;
 {$ENDIF}
@@ -725,7 +723,10 @@ begin
   d3dpp.BackBufferHeight:=SCheight;
   d3dpp.SwapEffect:=D3DSWAPEFFECT_COPY;
   d3dpp.EnableAutoDepthStencil:=True;
-  d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_IMMEDIATE;
+  if vsyncon then
+    d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_ONE
+  else
+    d3dpp.PresentationInterval:=D3DPRESENT_INTERVAL_IMMEDIATE;
 
   if not iswindowed then
   begin
@@ -1131,16 +1132,16 @@ begin
   //zz:=zz+(round(xx)mod 2)*scalfac/2;
 
   szin:=fuszin;
-  if (norm.y < 0.83) and (yy > 17) then szin:=koszin;
+  if (norm.y < 0.83) and (yy > grasslevel+1.25) then szin:=koszin;
 
-  if (yy < 15) and not winter then szin:=hoszin + $FF000000;
+  if (yy < grasslevel-0.75) and not winter then szin:=hoszin + $FF000000;
 
-  if yy < 10.5 then szin:=nhszin + $FF000000;
+  if yy < wetsandlevel-0.25 then szin:=nhszin + $FF000000;
 
 
   //if yy<0 then yy:=0;
-  if yy < 10 then szin:=colorlerp(vizszin, nhszin, abs(yy - 5) / 5) + $FF000000;
-  if yy < 5 then szin:=vizszin + $FF000000;
+  if yy < waterbaselevel-0.15 then szin:=colorlerp(vizszin, nhszin, abs(yy - (waterbaselevel-0.15)/2) / (waterbaselevel-0.15)/2) + $FF000000;
+  if yy < (waterbaselevel-0.15)/2 then szin:=vizszin + $FF000000;
 
 
 //{$IF Defined(panthihogomb) and not Defined(winter)}
@@ -2040,7 +2041,7 @@ end;
 
 function initmaptex:HRESULT;
 var
-  i, j, k, l:integer;
+  i, j, k, l, m:integer;
   l1c, l2c, l3c:TD3DXColor;
   lr:TD3DLockedrect;
   pbits:pointer;
@@ -2073,6 +2074,9 @@ var
   gravelend:single;
   stonestart:single;
   stoneend:single;
+
+  y_waterstart:single;
+  y_waterend:single;
 begin
 
   setlength(cmap1, CMAP_SIZE * CMAP_SIZE);
@@ -2135,13 +2139,13 @@ begin
         //zz:=zz+(round(xx)mod 2)*scalfac/2;
         col:=fucol;
         if yy < 0 then yy:=0;
-        if yy < 15 then col:=hocol;
+        if yy < grasslevel-0.75 then col:=hocol;
         if (n.y) < 0.83 then
-        begin
           D3DXColorScale(col, kocol, random(10) / 100 + 0.9);
-        end;
-        if yy < 10.5 then col:=nhcol;
-        if yy < 10 then D3DXColorLerp(col, wacol, nhcol, yy / 15);
+        if yy < wetsandlevel-0.25 then col:=nhcol;
+        if yy < waterbaselevel-0.15 then D3DXColorLerp(col, wacol, nhcol, yy / (grasslevel-0.75));
+
+
         tmp:=D3DXVec3dot(n, l1);
         if tmp < 0 then tmp:=0;
         D3DXColorscale(lght1, l1c, tmp);
@@ -2271,7 +2275,7 @@ begin
             //alap színek
           red:=grasspeak;
           //   if yy<0 then yy:=0;
-          if (yy > 18) then
+          if (yy > grasslevel+2.25) then
           begin
             if ((n.y) < 0.83) and ((n.y) > 0.80) then //kicsit meredek
             begin
@@ -2282,11 +2286,23 @@ begin
             if (n.y) < 0.75 then red:=stoneend; //nagyon meredek
           end;
           //     if (yy<17) and (yy>=13) then red:=Lerp(sandpeak,grasspeak,clip(0,1,(yy-13)/4 +0.5*(-0.5 -0.182 + perlin.complexnoise(1,xx+2000,zz,4,1,0.5)/1.65)));
-          if (yy < 16.2) and (yy >= 14.62) then red:=Lerp(sandpeak, grasspeak, clip(0, 1, (yy - 15) / 1.58 + 0.5 * (-0.5 + Frac(perlin.complexnoise(1, xx + 2000, zz, 4, 1, 0.5) * 300))));
-          if yy < 14.62 then red:=sandpeak; //16.2 14.62
-          if (yy < 11.5) and (yy >= 10) then red:=Lerp(waterend, sandpeak, (yy - 10) / 1.5); //waterend = vizes homok peak
-          if yy < 10 then red:=Lerp(waterstart, waterend, (yy - 5) / 5); //y=10-nél 1 legyen
-          if yy < 5 then red:=waterstart;
+
+          
+          y_waterend := waterbaselevel-0.15;
+          y_waterstart := y_waterend/2;
+
+          if (yy < grasslevel+0.45) and (yy >= grasslevel-1.13) then red:=Lerp(sandpeak, grasspeak, clip(0, 1, (yy - (grasslevel-0.75)) / 1.58 + 0.5 * (-0.5 + Frac(perlin.complexnoise(1, xx + 2000, zz, 4, 1, 0.5) * 300))));
+          if yy < grasslevel-1.13 then red:=sandpeak; //16.2 14.62
+          if (yy < wetsandlevel+0.75) and (yy >= y_waterend) then red:=Lerp(waterend, sandpeak, (yy - y_waterend) / 1.5); //waterend = vizes homok peak
+          if yy < y_waterend then red:=Lerp(waterstart, waterend, (yy - y_waterstart) / y_waterstart); //y=10-nél 1 legyen
+          if yy < y_waterstart then red:=waterstart;
+
+          for m:=0 to length(bubbles) - 1 do //TODO CMAP
+            with bubbles[m] do
+            begin
+              if grass and (tavpointpointsq(D3DXVector3(posx, posy, posz), D3DXVector3(xx, yy, zz)) < rad * rad) then
+                red:=grasspeak;
+          end;
 
 
           //fények
@@ -2935,6 +2951,7 @@ var
   mati:TMaterial;
   tmpbol:boolean;
   tmpint:integer;
+  special:string;
 label
   visszobj, visszfegyv;
 begin
@@ -3035,6 +3052,15 @@ begin
       posz:=stuffjson.GetFloat(['bubbles', i, 'z']);
       rad:=stuffjson.GetFloat(['bubbles', i, 'radius']);
       if (rad <= 3) then rad:=3;
+
+      for j:=0 to stuffjson.GetNum(['bubbles', i, 'special']) do
+      begin
+        special:=stuffjson.GetString(['bubbles', i, 'special', j]);
+        if special = 'nofog' then
+          nofog:=true;
+        if special = 'grass' then
+          grass:=true;
+      end;
     end;
 
   x:=0;
@@ -6456,7 +6482,7 @@ begin
   //v2:=v1;
   tmp:=v1.y;
   v1.y:=max(advwove(v1.x, v1.z), v1.y);
-  if v1.y < 10 then v1.y:=10;
+  if v1.y < waterlevel then v1.y:=waterlevel;
   for k:=0 to high(ojjektumnevek) do
   begin
     for j:=0 to ojjektumarr[k].hvszam - 1 do
@@ -7136,6 +7162,7 @@ procedure handleleavetriggers;
 var
   i:integer;
 begin
+  currentleavetrigger:=-1;
   for i:=0 to Length(leavetriggers) - 1 do
     with leavetriggers[i] do
       if autoban then
@@ -7143,11 +7170,9 @@ begin
           if (teams = 'both') or ((teams = 'gun') and (myfegyv < 128)) or ((teams = 'tech') and (myfegyv > 127)) then
             if tavpointpointsq(pos, tegla.pos) < sqr(rad) then
             begin
-              nearleavetrigger:=true;
-              leavetrigger_exitpos:= exitpos;
+              currentleavetrigger:=i;
               exit;
             end;
-  nearleavetrigger:= false;
 end;
 
 procedure handleteleports;
@@ -7204,7 +7229,7 @@ begin
             v1.x:=vfrom.x + (Random(200) - 100) / 100 * (rad);
             v1.y:=vfrom.y;
             v1.z:=vfrom.z + (Random(200) - 100) / 100 * (rad);
-            Particlesystem_add(CoolingparticleCreate(v1, D3DXVector3(random(10) * 0.01 - 0.05, 0.03, random(10) * 0.01 - 0.05), 1.5, 8.5 + random(15) * 0.1, random(60) * 0.001 + 0.12, $FFAAAAAA + random(32) * $010101, $00000000, random(230) + 900));
+            Particlesystem_add(CoolingparticleCreate(v1, D3DXVector3(random(10) * 0.01 - 0.05, 0.03, random(10) * 0.01 - 0.05), 1.5, 8.5 + random(15) * 0.1, random(60) * 0.001 + 0.12, $FFAAAAAA + cardinal(random(32)) * $010101, $00000000, random(230) + 900));
           end;
 
         if tip = 0 then
@@ -7453,6 +7478,7 @@ begin
     iranyithato := FALSE;
     nemlohet := TRUE;
     selfieMaker.muks := muks;
+    selfieMaker.fegyv := myfegyv;
     selfieMaker.fejcuccrenderer := fejcuccrenderer;
     selfieMaker.fejcucc := myfejcucc;
     selfieMaker.campos := D3DXVector3(cpx^, cpy^, cpz^);
@@ -7483,13 +7509,15 @@ var
   gtc:cardinal;
   aauto:Tauto;
   tuleli:boolean;
+  bubi:boolean;
 
   start, stop:cardinal;
 begin
   gtc:=gettickcount;
   //evalscriptline('fastinfo ' + intToStr(gtc));
   korlat:=0;
-  repeat
+  while not (((hanyszor + 1) * 10 > timegettime) or ((korlat + 1) > 20)) do
+  begin
     inc(hanyszor);
 
     // if playrocks>1 then playrocks:=1;
@@ -7579,7 +7607,7 @@ begin
             begin
               yandnorm(tmp.x, tmpfloat2, tmp.z, n, 1);
 
-              if tmp.y - 0.3 < tmpfloat2 then
+              if (tmp.y - 0.3 < tmpfloat2) or ((aauto.vehicletype = 1) and (tmp.y < waterlevel)) then
               begin
                 tmps:=randomvec(animstat * 100 + hanyszor, 0.1);
                 tmps.x:=tmps.x + (aauto.pos.x - aauto.vpos.x) * 0.8;
@@ -7725,7 +7753,7 @@ begin
               else
                 d3dxvec3lerp(tmp, aauto.kerekorig[2], aauto.kerekorig[3], 0.1 + 0.8 * random(1000) / 1000);
 
-              if techautoeffekt and (tegla.vehicletype = 0) then
+              if techautoeffekt and (aauto.vehicletype = 0) then
               begin
                 tmp:=aauto.kerekorig[0];randomplus(tmp, gtc, 1);
                 tmps:=aauto.kerekorig[1];randomplus(tmps, gtc + 5, 1);
@@ -7934,16 +7962,14 @@ begin
     inc(rbido);
     if rbszam > -1 then
       rbido:=rbido mod (rbszam + 1);
-    for i:=0 to rbszam do begin
-      {
-          bubi:=false;
-      //    if (rongybabak[i].gmbk[0].y<10)  then
-            for j:=0 to length(bubbles) do
-              with bubbles[j] do
-                if false then
-                  bubi:=true;
-                             }
-      rongybabak[i].step(advwove, i = rbido, false);
+    for i:=0 to rbszam do
+    begin
+      bubi:=false;
+      for j:=0 to length(bubbles) - 1 do
+        with bubbles[j] do
+          if tavpointpointsq(d3dxvector3(rongybabak[i].gmbk[0].x, rongybabak[i].gmbk[0].y, rongybabak[i].gmbk[0].z), d3dxvector3(posx, posy, posz)) < rad * rad then
+            bubi:=true;
+      rongybabak[i].step(advwove, i = rbido, bubi);
     end;
     i:=0;
     while i <= rbszam do
@@ -8045,11 +8071,11 @@ begin
       vanishcar:=1;
       cpy^:=cpy^ - 1;
       cpoy^:=cpy^;
-      if nearleavetrigger and (halal = 0) then
+      if (currentleavetrigger <> -1) and (halal = 0) then
       begin
-        cpx^:=leavetrigger_exitpos.x;
-        cpy^:=leavetrigger_exitpos.y;
-        cpz^:=leavetrigger_exitpos.z;
+        cpx^:=leavetriggers[currentleavetrigger].exitpos.x;
+        cpy^:=leavetriggers[currentleavetrigger].exitpos.y;
+        cpz^:=leavetriggers[currentleavetrigger].exitpos.z;
         cpox^:=cpx^;cpoy^:=cpy^;cpoz^:=cpz^;
       end;
     end;
@@ -8684,17 +8710,11 @@ end;
 
     // until (hanyszor*10>timegettime) or (korlat>20);
     inc(korlat);
-  until (hanyszor * 10 > timegettime) or (korlat > 20);
+  end;
   //////////
 
   if rbszam > 30 then delrongybaba(-1);
   hvolt:=false;
-  i:=hanyszor * 10 - timegettime;
-
-  if i > 0 then sleep(i)
-  else
-    hanyszor:=timegettime div 10;
-
   anticheat2:=round(time * 86400000) - timegettime;
 
   if abs(anticheat1 - anticheat2) > 5000 then
@@ -9005,7 +9025,7 @@ begin
   for i:=0 to high(ppl) do
     with tobbiekautoi[i] do
     begin
-      if ppl[i].auto.changed then
+      if ppl[i].auto.watercraft <> (vehicletype <> 0) then
       begin
         if ppl[i].auto.watercraft then
         begin
@@ -9028,7 +9048,6 @@ begin
           else
             changeMMOCarScaling(i, 'gun');
         end;
-        ppl[i].auto.changed:=false;
       end;
 
       if ppl[i].net.avtim = 0 then ppl[i].net.avtim:=10;
@@ -9655,8 +9674,9 @@ end;
 
 procedure rendersky;
 var
-  i:integer;
+  i, j:integer;
   tmplw:cardinal;
+  bubi:boolean;
 begin
 
   g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -9759,7 +9779,13 @@ begin
   fogstart:=0;
   fogend:=lerp(radius_rainy, radius_sunny, fogc);
 
-  if (vEyePt.y <= waterlevel) then fogend:=90;
+
+  bubi:=false;
+  for j:=0 to length(bubbles) - 1 do
+    with bubbles[j] do
+      if nofog and (tavpointpointsq(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(posx, posy, posz)) < rad * rad) then
+        bubi:=true;
+  if (vEyePt.y <= waterlevel) and not bubi then fogend:=90;
 
   if mapmode > 0 then
   begin
@@ -9889,7 +9915,7 @@ begin
       FEGYV_M4A1, FEGYV_M82A1, FEGYV_MP5A3, FEGYV_BM3, FEGYV_BM3_2, FEGYV_BM3_3, FEGYV_GUNSUPP:
         begin
           Particlesystem_add(Bulletcreate(aloves.pos, aloves.v2, 3, 20, 0.01, $00A0A050, 1, false));
-          tmp:=sikmetsz(aloves.pos, aloves.v2, 10);
+          tmp:=sikmetsz(aloves.pos, aloves.v2, waterlevel);
           if tmp.y <> 0 then
           begin
             for j:=0 to 6 * opt_particle do
@@ -9901,7 +9927,7 @@ begin
             d3dxvec3subtract(tmp2, aloves.pos, aloves.v2);
             D3DXVec3Normalize(tmp2, tmp2);
             D3DXVec3Scale(tmp2, tmp2, 0.10);
-            ParticleSystem_Add(Coolingparticlecreate(aloves.v2, tmp2, 0.03, 0.24, 0.05, dustcol + random(32) * $010101, $00000000, 20));
+            ParticleSystem_Add(Coolingparticlecreate(aloves.v2, tmp2, 0.03, 0.24, 0.05, dustcol + cardinal(random(32)) * $010101, $00000000, 20));
             //      ParticleSystem_Add(Simpleparticlecreate(aloves.v2,D3DXVector3Zero,0.03,0.24,dustcol+random(32)*$010101,$00000000,2000));
           end;
 
@@ -10861,7 +10887,7 @@ begin
           Drawmessage(lang[47], $FFFF0000);
       end;
 
-      if nearleavetrigger then
+      if currentleavetrigger <> -1 then
       begin
         drawmessage(lang[111], $FF000000 + betuszin);
       end
@@ -12323,15 +12349,58 @@ var
   pos:TD3DVector;
   tmplw:longword;
   matViewProj:TD3DMatrix;
+
+  elapsedTime:extended;
 begin
 
-  inc(framecount); //TODO IF!
-
-  if framecount = 10 then
+  //FPS Counters
+  if opt_drawfps then
   begin
-    fps:=floor(10000 / (GetTickCount - frametime));
-    frametime:=GetTickCount;
-    framecount:=0;
+    inc(framecount);
+    {
+    //GetTickCount - 10-15ms
+    if framecount = 10 then
+    begin
+      fps:=floor(10000 / (GetTickCount - frametime));;
+      frametime:=GetTickCount;
+      framecount:=0;
+    end;
+    }
+
+    {
+    //GetTickCount - divzero fixed
+    if frametime + 1000 < GetTickCount then
+    begin
+      fps:=framecount;
+      frametime:=GetTickCount;
+      framecount:=0;
+    end;
+    }
+
+    //{
+    //QPC ~1µs
+    //TODO replace with StopWatch in Delphi 10
+    QueryPerformanceCounter(QPC_stop);
+    elapsedTime:=(QPC_stop-QPC_start)/QPC_frequency;
+    if elapsedTime >= 0.5 then
+    begin
+      fps:=round(framecount / elapsedTime);
+      QueryPerformanceCounter(QPC_start);
+      framecount:=0;
+    end;
+    //}
+
+    {
+    //timegettime 1-5ms
+    elapsedTime:=(timegettime-frametime)/1000;
+    if elapsedTime >= 0.5 then
+    begin
+      fps:=round(framecount / elapsedTime);
+      frametime:=timegettime;
+      framecount:=0;
+    end;
+    }
+
   end;
 
   //########################
@@ -12809,7 +12878,7 @@ begin
     if g_pEffect <> nil then
     begin
       g_pEffect.SetMatrix('g_mWorldViewProjection', matViewproj);
-      g_pEffect.SetFloat('time', (gettickcount mod ceil(200 * (felho.coverage + 10))) / ceil(200 * (felho.coverage + 10)) * 2 * pi);
+      g_pEffect.SetFloat('time', (gettickcount mod cardinal(ceil(200 * (felho.coverage + 10)))) / ceil(200 * (felho.coverage + 10)) * 2 * pi);
       g_pEffect.SetFloat('weather', max(0, WEATHER_MAX - felho.coverage));
       g_peffect.SetFloat('HDRszorzo', shaderhdr);
     end;
@@ -13220,10 +13289,6 @@ begin
   end;
 end;
 
-
-
-
-
 function exe_checksum:integer;
 var
   addr:dword;
@@ -13261,7 +13326,7 @@ end;
 
 procedure GameLoop;
 var
-  d3derr:integer;
+  d3derr, previousPresentTime:integer;
 begin
 {$IFDEF profiler}
   QueryPerformanceCounter(profile_start);
@@ -13272,7 +13337,7 @@ begin
 
 {$IFDEF profiler}
   QueryPerformanceCounter(profile_stop);
-  profile_mecha:=(MSecsPerSec * (profile_stop - profile_start)) div profile_frequency;
+  profile_mecha:=(MSecsPerSec * (profile_stop - profile_start)) div QPC_frequency;
   QueryPerformanceCounter(profile_start);
 {$ENDIF}     
 
@@ -13286,11 +13351,20 @@ begin
 
 {$IFDEF profiler}
   QueryPerformanceCounter(profile_stop);
-  profile_render:=(MSecsPerSec * (profile_stop - profile_start)) div profile_frequency;
+  profile_render:=(MSecsPerSec * (profile_stop - profile_start)) div QPC_frequency;
 {$ENDIF}
 
-  d3derr:=g_pd3dDevice.Present(nil, nil, 0, nil);
+  if FPSLimit >= FPS_MIN then
+  begin
+    previousPresentTime:= FPSLimiter_START - FPSLimiter_STOP;
+    repeat
+      QueryPerformanceCounter(FPSLimiter_STOP);
+    until (FPSLimiter_STOP - FPSLimiter_START + previousPresentTime) / QPC_frequency >= 1/FPSLimit;
+  end;
   // Present the backbuffer contents to the display
+  d3derr:=g_pd3dDevice.Present(nil, nil, 0, nil);
+  QueryPerformanceCounter(FPSLimiter_START);
+  
   lostdevice:=lostdevice or (D3DERR_DEVICELOST = d3derr);
 end;
 
@@ -14006,6 +14080,8 @@ begin
 end;
 
 procedure Menuloop;
+var
+  previousPresentTime:integer;
 begin
   laststate:= 'HMC';
   handlemenuclicks;
@@ -14047,7 +14123,16 @@ begin
 
   menu.Draw;
 
+  if FPSLimit >= FPS_MIN then
+  begin
+    previousPresentTime:= FPSLimiter_START - FPSLimiter_STOP;
+    repeat
+      QueryPerformanceCounter(FPSLimiter_STOP);
+    until (FPSLimiter_STOP - FPSLimiter_START + previousPresentTime) / QPC_frequency >= 1/FPSLimit;
+  end;
+
   g_pd3dDevice.Present(nil, nil, 0, nil);
+  QueryPerformanceCounter(FPSLimiter_START);
 end;
 
 procedure InitMenuScene;
@@ -15086,7 +15171,7 @@ var
       selfieMaker.zoomlevel := 2;
       selfieMaker.dab := FALSE;
     end;
-    {
+{$IFDEF watercraftcommands}
     if pos(' /boat', mit) = 1 then
     begin
       SpawnVehicle(d3dxvector3(-335, waterlevel, -60),1,'airboat');
@@ -15096,8 +15181,9 @@ var
     begin
       SpawnVehicle(d3dxvector3(-335, waterlevel, -60),2,'submarine');
     end;
-     
-	if pos(' //', mit) = 1 then evalscriptline(copy(mit, 4, length(mit) - 3));
+{$ENDIF}
+    {
+    if pos(' //', mit) = 1 then evalscriptline(copy(mit, 4, length(mit) - 3));
       }
 
     {
@@ -16071,6 +16157,7 @@ end;   {}
     texture_res:=TEXTURE_VERYHIGH;
     isnormals:=true;
     iswindowed:=false;
+    vsyncon:=false;
     useoldterrain:=false;
     ASPECT_RATIO:=SCwidth / SCheight;
 
@@ -16096,10 +16183,8 @@ end;   {}
         if (l2 = 'oldterrain') then useoldterrain:=strtoint(copy(line, pos('=', line) + 1, length(line))) = 1;
         if (l2 = 'langid') then nyelv:=strtoint(copy(line, pos('=', line) + 1, length(line))) and $3FF;
         if (l2 = 'texture_res') then texture_res:=strtoint(copy(line, pos('=', line) + 1, length(line)));
-
-        if texture_res = TEXTURE_LOW_LEG then texture_res:=TEXTURE_LOW;
-        if texture_res = TEXTURE_MED_LEG then texture_res:=TEXTURE_MED;
-        if texture_res = TEXTURE_HIGH_LEG then texture_res:=TEXTURE_HIGH;
+        if (l2 = 'vsync') then vsyncon:=strtoint(copy(line, pos('=', line) + 1, length(line))) = 1;
+        if (l2 = 'fpslimit') then FPSLimit:=strtoint(copy(line, pos('=', line) + 1, length(line)));
 
       end;
       closefile(fil);
@@ -16108,7 +16193,8 @@ end;   {}
     pixelY:=1 / SCheight;
     ASPECT_RATIO:=SCwidth / SCheight;
     vertScale:=SCheight / 600;
-
+    if FPSLimit > FPS_MAX then
+      FPSLimit := 0;
 {$IFDEF oldterrain}
     useoldterrain:=true;
 {$ENDIF}
@@ -16206,6 +16292,7 @@ begin //                 BEGIIIN
     //Hacking checking
     errorospointer:=@ahovaajopointermutat;
 
+    
 
     if not (canbeadmin and commandlineoption(chr(120))) then
     begin
@@ -16220,6 +16307,8 @@ begin //                 BEGIIIN
       exit;
     end;
     checksum:=0;
+    
+    QueryPerformanceFrequency(QPC_frequency);
 
     //more initialization
     heavyLOD:={$IFDEF heavyLOD}true{$ELSE}false{$ENDIF};
@@ -16440,6 +16529,7 @@ begin //                 BEGIIIN
       fsettings.DecimalSeparator:= '.';
 
       writeln(logfile, 'Loaded menu');flush(logfile);
+
       menu.DrawLoadScreen(0);
       if SUCCEEDED(InitializeAll) then
       begin
@@ -16596,10 +16686,6 @@ begin //                 BEGIIIN
           AFstart;
 
         multisc.opt_nochat:=opt_nochat;
-
-{$IFDEF profiler}
-        QueryPerformanceFrequency(profile_frequency);
-{$ENDIF}
 
         SetMainVolume(menufi[MI_VOL].elx);
         laststate:= 'Initialzing game 5';
