@@ -17,10 +17,10 @@
 	"color_mud_dust": "0xFF514024",
 	"color_sand_dust": "0xFFDCB9B2",
 	"lower_menu_text": "Music: Unreal Superhero III Symphonic version by Jaakko Takalo",
-	"spawn_height": 10,
+	"spawn_height": 4,
 	"spawn_radius": 5,
 	"terrain": {
-		"grass_level": 45.75,
+		"grass_level": 47.75,
 		"wetsand_level": 42.75,
 		"water_baselevel": 42.15
 	},
@@ -333,11 +333,6 @@
 					"x": -117.48,
 					"y": 42.66,
 					"z": -133.85
-				},
-				{
-					"x": -118.94,
-					"y": 42,
-					"z": -48.65
 				}
 			]
 		},
@@ -351,7 +346,7 @@
             ],
 			"scalex": 1,
 			"scaley": 1,
-			"zone": "Bunker",
+			"zone": "",
 			"position": [
                 {
 					"x": -205,
@@ -397,11 +392,11 @@
             ],
             "scalex": 3,
             "scaley": 3,
-            "zone": "",
+            "zone": "Warship",
             "position": [
                 {
                     "x": -380,
-					"y": 50,
+					"y": 48.5,
 					"z": 100
                 }
             ]
@@ -412,7 +407,7 @@
             ],
             "scalex": 2,
             "scaley": 2,
-            "zone": "",
+            "zone": "Barracks",
             "position": [
                 {
                     "x": -220,
@@ -427,7 +422,7 @@
             ],
             "scalex": 2,
             "scaley": 2,
-            "zone": "",
+            "zone": "Overpass",
             "position": [
                 {
                     "x": -314,
@@ -442,7 +437,7 @@
             ],
             "scalex": 2,
             "scaley": 2,
-            "zone": "",
+            "zone": "Outpost",
             "position": [
                 {
                     "x": -236.5,
@@ -454,14 +449,14 @@
 		"kikoto": {
 			"scalex": 1,
 			"scaley": 1,
-			"zone": "Port",
+			"zone": "",
 			"special": [
 				"dontflattenterrain"
 			],
 			"position": [
 				{
 					"x": -299.09,
-					"y": 10.51,
+					"y": 3.5,
 					"z": -9.04
 				}
 			]
@@ -469,11 +464,14 @@
 		"steelworks": {
 			"scalex": 4,
 			"scaley": 4,
-			"zone": "Industrial District B",
+			"zone": "",
+			"special": [
+				"dontflattenterrain"
+			],
 			"position": [
 				{
 					"x": -285.53,
-					"y": 16.2,
+					"y": 10.2,
 					"z": 88.56
 				}
 			]
@@ -481,11 +479,14 @@
 		"raktar1": {
 			"scalex": 1,
 			"scaley": 1,
-			"zone": "Industrial District B",
+			"zone": "",
+			"special": [
+				"dontflattenterrain"
+			],
 			"position": [
 				{
 					"x": -348.06,
-					"y": 16.2,
+					"y": 10.2,
 					"z": 94.81
 				}
 			]
@@ -493,11 +494,14 @@
 		"raktar2": {
 			"scalex": 1,
 			"scaley": 1,
-			"zone": "Industrial District B",
+			"zone": "",
+			"special": [
+				"dontflattenterrain"
+			],
 			"position": [
 				{
 					"x": -348.06,
-					"y": 16.2,
+					"y": 10.2,
 					"z": 94.81
 				}
 			]
@@ -505,11 +509,14 @@
 		"oil": {
 			"scalex": 2.5,
 			"scaley": 2.5,
-			"zone": "Industrial District B",
+			"zone": "",
+			"special": [
+				"dontflattenterrain"
+			],
 			"position": [
 				{
 					"x": -348.06,
-					"y": 16.2,
+					"y": 10.2,
 					"z": 165.81
 				}
 			]
@@ -517,11 +524,14 @@
 		"nafta": {
 			"scalex": 5,
 			"scaley": 5,
-			"zone": "Industrial District A",
+			"zone": "",
+			"special": [
+				"dontflattenterrain"
+			],
 			"position": [
 				{
 					"x": -282.813,
-					"y": 22.04,
+					"y": 16.04,
 					"z": 158.02
 				}
 			]
@@ -529,38 +539,44 @@
 		"towerhouse": {
 			"scalex": 3,
 			"scaley": 3,
-			"zone": "Lighthouse",
+			"zone": "",
 			"position": [
 				{
 					"x": -219.26,
-					"y": 24.79,
+					"y": 18.79,
 					"z": -39.93
 				}
+			],
+			"special": [
+				"dontflattenterrain"
 			]
 		},
 		"radio2": {
 			"scalex": 2.2,
 			"scaley": 2.2,
-			"zone": "AlComp",
+			"zone": "",
 			"position": [
 				{
 					"x": -280.04,
-					"y": 14.62,
+					"y": 8.62,
 					"z": -105.49
 				}
+			],
+			"special": [
+				"dontflattenterrain"
 			]
 		},
 		"almacomp1": {
 			"scalex": 1,
 			"scaley": 1,
-			"zone": "AlComp",
+			"zone": "",
 			"special": [
 				"dontflattenterrain"
 			],
 			"position": [
 				{
 					"x": -311.4,
-					"y": 14.623,
+					"y": 8.623,
 					"z": -118
 				}
 			]
@@ -570,12 +586,12 @@
 			"scaley": 7,
 			"zone": "Modern ruins",
 			"special": [
-				"fittoterrain"
+				"dontflattenterrain"
 			],
 			"position": [
 				{
 					"x": -290.45,
-					"y": 32.06,
+					"y": 26.06,
 					"z": -209.89
 				}
 			]
@@ -585,12 +601,12 @@
 			"scaley": 2.5,
 			"zone": "Modern ruins",
 			"special": [
-				"fittoterrain"
+				"dontflattenterrain"
 			],
 			"position": [
 				{
 					"x": -250.79,
-					"y": 38.16,
+					"y": 32.16,
 					"z": -190.82
 				}
 			]
@@ -598,13 +614,16 @@
 		"banker": {
 			"scalex": 5,
 			"scaley": 5,
-			"zone": "AlComp",
+			"zone": "",
 			"position": [
 				{
 					"x": -328.77,
-					"y": 20.7,
+					"y": 16,
 					"z": -160.37
 				}
+			],
+			"special": [
+				"dontflattenterrain"
 			]
 		},
 		"fuggo": {
@@ -613,14 +632,14 @@
 			"position": [
 				{
 					"x": -400,
-					"y": 10,
+					"y": 4,
 					"z": -100
 				}
 			],
 			"special": [
 				"dontflattenterrain"
 			],
-			"zone": "Bridge"
+			"zone": ""
 		},
 		"pantheon": {
 			"scalex": 4,
@@ -646,36 +665,6 @@
 				}
 			]
 		},
-		"maya_a3": {
-			"scalex": 2,
-			"scaley": 2,
-			"special": [
-				"fittoterrain"
-			],
-			"zone": "Mayan ruins",
-			"position": [
-				{
-					"x": -182.26,
-					"y": 34.58,
-					"z": -105.38
-				}
-			]
-		},
-		"maya_b3": {
-			"scalex": 2,
-			"scaley": 2,
-			"special": [
-				"fittoterrain"
-			],
-			"zone": "Mayan ruins",
-			"position": [
-				{
-					"x": -159.09,
-					"y": 40.94,
-					"z": -51.18
-				}
-			]
-		},
 		"kispiri": {
 			"scalex": 1.5,
 			"scaley": 1.5,
@@ -683,7 +672,7 @@
 			"position": [
 				{
 					"x": -92.74,
-					"y": 41,
+					"y": 42.5,
 					"z": -47.1
 				}
 			]
@@ -695,9 +684,12 @@
 			"position": [
 				{
 					"x": -481.19,
-					"y": 22.01,
+					"y": 18.9,
 					"z": -45.27
 				}
+			],
+			"special": [
+				"dontflattenterrain"
 			]
 		},
 		"techkomplex": {
@@ -707,21 +699,27 @@
 			"position": [
 				{
 					"x": -406.07,
-					"y": 25.24,
+					"y": 19.24,
 					"z": 51.29
 				}
+			],
+			"special": [
+				"dontflattenterrain"
 			]
 		},
 		"towerV": {
 			"scalex": 3,
 			"scaley": 3,
-			"zone": "Lighthouse",
+			"zone": "",
 			"position": [
 				{
 					"x": -216.38,
-					"y": 24.97,
+					"y": 18.97,
 					"z": -49.15
 				}
+			],
+			"special": [
+				"dontflattenterrain"
 			]
 		},
 		"kbsz": {
@@ -731,7 +729,7 @@
 			"position": [
 				{
 					"x": -800,
-					"y": 17,
+					"y": 8,
 					"z": -800
 				}
 			]
@@ -782,7 +780,7 @@
 			"position": [
 				{
 					"x": -157.191,
-					"y": 19.45,
+					"y": 13.45,
 					"z": 169.497
 				}
 			],
@@ -824,16 +822,19 @@
 			"position": [
 				{
 					"x": -442.26,
-					"y": 25.24,
+					"y": 19.24,
 					"z": 94.14
 				}
+			],
+			"special": [
+				"dontflattenterrain"
 			]
 		},
 		"autohid": {
 			"position": [
 				{
 					"x": -235.553,
-					"y": 16,
+					"y": 10,
 					"z": 166.273
 				}
 			],
@@ -842,49 +843,19 @@
 			"special": [
 				"dontflattenterrain"
 			],
-			"zone": "Highway"
+			"zone": ""
 		},
 		"apartment": {
 			"position": [
 				{
 					"x": -427.417,
-					"y": 24,
+					"y": 18,
 					"z": -9.172
 				}
 			],
-			"zone": "Apartment",
+			"zone": "",
 			"scalex": 1,
 			"scaley": 1,
-			"special": [
-				"dontflattenterrain"
-			]
-		},
-		"palmalittle": {
-			"position": [
-				{
-					"x": 185.44,
-					"y": 10.8,
-					"z": 312.17
-				}
-			],
-			"zone": "Oasis",
-			"special": [
-				"dontflattenterrain"
-			],
-			"scalex": 2,
-			"scaley": 2
-		},
-		"full_wall": {
-			"scalex": 1.5,
-			"scaley": 1.5,
-			"zone": "Frontline",
-			"position": [
-				{
-					"x": -604.75,
-					"y": 10.5,
-					"z": 128.46
-				}
-			],
 			"special": [
 				"dontflattenterrain"
 			]
@@ -1478,24 +1449,6 @@
 			"z": 31.15,
 			"type": "smallfire"
 		},
-		"kemeny1": {
-			"x": -284,
-			"y": 57.4,
-			"z": 155,
-			"type": "kemenyfust"
-		},
-		"kemeny2": {
-			"x": -273.5,
-			"y": 51.5,
-			"z": 179.65,
-			"type": "kemenyfust"
-		},
-		"szikra": {
-			"x": -417.28,
-			"y": 46.78,
-			"z": 60.58,
-			"type": "szikra"
-		},
 		"kislang1": {
 			"x": -116.4,
 			"y": 46.035,
@@ -1530,7 +1483,7 @@
 			},
 			"to": {
 				"x": -777.6,
-				"y": 17.1,
+				"y": 8.1,
 				"z": -780.18
 			},
 			"radius": 1,
@@ -1546,7 +1499,7 @@
 			},
 			"to": {
 				"x": -836.49,
-				"y": 17.1,
+				"y": 8.1,
 				"z": -799.52
 			},
 			"radius": 1,
@@ -1559,7 +1512,7 @@
 			"visible_range": 20,
 			"from": {
 				"x": -85.1,
-				"y": 41.89,
+				"y": 43.39,
 				"z": -45.36
 			},
 			"to": {
@@ -1575,7 +1528,7 @@
 			"visible_range": 20,
 			"from": {
 				"x": -93.12,
-				"y": 41.89,
+				"y": 43.39,
 				"z": -53.36
 			},
 			"to": {
@@ -1591,7 +1544,7 @@
 			"visible_range": 20,
 			"from": {
 				"x": -93.12,
-				"y": 41.89,
+				"y": 43.39,
 				"z": -40.71
 			},
 			"to": {
@@ -1607,7 +1560,7 @@
 			"visible_range": 20,
 			"from": {
 				"x": -85.57,
-				"y": 41.89,
+				"y": 43.39,
 				"z": -49.1
 			},
 			"to": {
@@ -1623,7 +1576,7 @@
 			"visible_range": 20,
 			"from": {
 				"x": -89.72,
-				"y": 41.89,
+				"y": 43.39,
 				"z": -40.71
 			},
 			"to": {
@@ -1639,7 +1592,7 @@
 			"visible_range": 20,
 			"from": {
 				"x": -89.78,
-				"y": 41.89,
+				"y": 43.39,
 				"z": -53.17
 			},
 			"to": {
@@ -1962,15 +1915,22 @@
 		},
         {
             "x": -800,
-            "y": 17,
-            "z": -800,
-            "radius": 50
+            "y": -15,
+            "z": -795,
+            "radius": 53,
+			"special": [
+				"nofog",
+				"grass"
+			]
         },
         {
             "x": -86.667,
             "y": 2,
             "z": -306.667,
-            "radius": 50
+            "radius": 30,
+			"special": [
+				"nofog"
+			]
         }
 	],
 	"menubackgrounds": [
@@ -2040,6 +2000,8 @@
 		"hosszu1",
 		"hosszu2",
 		"hszg",
+		"h1n1",
+		"h1n1_k",
 		"indy",
 		"kanye1",
 		"kanye2",
@@ -2164,14 +2126,6 @@
 				}
 			],
 			"position": [
-				{
-					"x": -422.42,
-					"y": 32,
-					"z": -17.12,
-					"rot": 0,
-					"scale": 0.35,
-					"light": 0.4
-				},
 				{
 					"x": -337.47,
 					"y": 19.68,
@@ -2739,7 +2693,7 @@
 			"watercraft": true,
 			"teams": "both"
 		},
-        "lighthouse": {
+		"lighthouse": {
 			"pos": {
 				"x": -233,
 				"y": 43,
@@ -2819,22 +2773,6 @@
 			"watercraft": true,
 			"teams": "both"
 		},
-		"romhaz": {
-			"pos": {
-				"x": -249,
-				"y": 43,
-				"z": -194.5
-			},
-			"exit_pos": {
-				"x": -249,
-				"y": 43,
-				"z": -194.5
-			},
-			"radius": 10,
-			"vehicle": false,
-			"watercraft": true,
-			"teams": "both"
-		},
 		"delta": {
 			"pos": {
 				"x": -405,
@@ -2843,8 +2781,56 @@
 			},
 			"exit_pos": {
 				"x": -405,
-				"y": 43,
-				"z": 53
+				"y": 44.5,
+				"z": 51
+			},
+			"radius": 20,
+			"vehicle": false,
+			"watercraft": true,
+			"teams": "both"
+		},
+		"pantibunker": {
+			"pos": {
+				"x": -215.75,
+				"y": 42.12,
+				"z": 35.33
+			},
+			"exit_pos": {
+				"x": -215.75,
+				"y": 48.12,
+				"z": 35.33
+			},
+			"radius": 30,
+			"vehicle": false,
+			"watercraft": true,
+			"teams": "both"
+		},
+		"mayan": {
+			"pos": {
+				"x": -125.56,
+				"y": 42.66,
+				"z": -96.93
+			},
+			"exit_pos": {
+				"x": -155,
+				"y": 42.66,
+				"z": -95
+			},
+			"radius": 45,
+			"vehicle": false,
+			"watercraft": true,
+			"teams": "both"
+		},
+		"fantasy": {
+			"pos": {
+				"x": -481.646,
+				"y": 42.20,
+				"z": -45
+			},
+			"exit_pos": {
+				"x": -481.646,
+				"y": 42.30,
+				"z": -45
 			},
 			"radius": 10,
 			"vehicle": false,
@@ -2853,38 +2839,38 @@
 		},
 		"gunship_front": {
 			"pos": {
-				"x": -418.25,
+				"x": -393.25,
 				"y": 42,
 				"z": 100
 			},
 			"exit_pos": {
 				"x": -405,
-				"y": 55,
+				"y": 47,
 				"z": 100
 			},
-			"radius": 10,
+			"radius": 25,
 			"vehicle": false,
 			"watercraft": true,
 			"teams": "both"
 		},
 		"gunship_back": {
 			"pos": {
-				"x": -340.25,
+				"x": -350.25,
 				"y": 42,
 				"z": 100
 			},
 			"exit_pos": {
 				"x": -340.25,
-				"y": 55,
+				"y": 47,
 				"z": 100
 			},
-			"radius": 10,
+			"radius": 25,
 			"vehicle": false,
 			"watercraft": true,
 			"teams": "both"
 		}
 	},
-	"bots_default_enabled": true,
+	"bots_default_enabled": false,
 	"botgroups": [],
 	"foliages": [
 		{
