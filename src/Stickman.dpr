@@ -69,7 +69,6 @@ const
   lvlsiz = 32; //Ennek is :(
   lvlsizp = lvlsiz + 1;
   farlvl = 4;
-  fuszam = 10;
   fuszin = $00FFFFFF;
   koszin = $FFFFFFFE;
   lvmi = lvlsiz div 4;
@@ -1133,16 +1132,16 @@ begin
   //zz:=zz+(round(xx)mod 2)*scalfac/2;
 
   szin:=fuszin;
-  if (norm.y < 0.83) and (yy > 17) then szin:=koszin;
+  if (norm.y < 0.83) and (yy > grasslevel+1.25) then szin:=koszin;
 
-  if (yy < 15) and not winter then szin:=hoszin + $FF000000;
+  if (yy < grasslevel-0.75) and not winter then szin:=hoszin + $FF000000;
 
-  if yy < 10.5 then szin:=nhszin + $FF000000;
+  if yy < wetsandlevel-0.25 then szin:=nhszin + $FF000000;
 
 
   //if yy<0 then yy:=0;
-  if yy < 10 then szin:=colorlerp(vizszin, nhszin, abs(yy - 5) / 5) + $FF000000;
-  if yy < 5 then szin:=vizszin + $FF000000;
+  if yy < waterbaselevel-0.15 then szin:=colorlerp(vizszin, nhszin, abs(yy - (waterbaselevel-0.15)/2) / (waterbaselevel-0.15)/2) + $FF000000;
+  if yy < (waterbaselevel-0.15)/2 then szin:=vizszin + $FF000000;
 
 
 //{$IF Defined(panthihogomb) and not Defined(winter)}
@@ -2042,7 +2041,7 @@ end;
 
 function initmaptex:HRESULT;
 var
-  i, j, k, l:integer;
+  i, j, k, l, m:integer;
   l1c, l2c, l3c:TD3DXColor;
   lr:TD3DLockedrect;
   pbits:pointer;
@@ -2075,6 +2074,9 @@ var
   gravelend:single;
   stonestart:single;
   stoneend:single;
+
+  y_waterstart:single;
+  y_waterend:single;
 begin
 
   setlength(cmap1, CMAP_SIZE * CMAP_SIZE);
@@ -2137,13 +2139,13 @@ begin
         //zz:=zz+(round(xx)mod 2)*scalfac/2;
         col:=fucol;
         if yy < 0 then yy:=0;
-        if yy < 15 then col:=hocol;
+        if yy < grasslevel-0.75 then col:=hocol;
         if (n.y) < 0.83 then
-        begin
           D3DXColorScale(col, kocol, random(10) / 100 + 0.9);
-        end;
-        if yy < 10.5 then col:=nhcol;
-        if yy < 10 then D3DXColorLerp(col, wacol, nhcol, yy / 15);
+        if yy < wetsandlevel-0.25 then col:=nhcol;
+        if yy < waterbaselevel-0.15 then D3DXColorLerp(col, wacol, nhcol, yy / (grasslevel-0.75));
+
+
         tmp:=D3DXVec3dot(n, l1);
         if tmp < 0 then tmp:=0;
         D3DXColorscale(lght1, l1c, tmp);
@@ -2273,7 +2275,7 @@ begin
             //alap színek
           red:=grasspeak;
           //   if yy<0 then yy:=0;
-          if (yy > 18) then
+          if (yy > grasslevel+2.25) then
           begin
             if ((n.y) < 0.83) and ((n.y) > 0.80) then //kicsit meredek
             begin
@@ -2284,11 +2286,23 @@ begin
             if (n.y) < 0.75 then red:=stoneend; //nagyon meredek
           end;
           //     if (yy<17) and (yy>=13) then red:=Lerp(sandpeak,grasspeak,clip(0,1,(yy-13)/4 +0.5*(-0.5 -0.182 + perlin.complexnoise(1,xx+2000,zz,4,1,0.5)/1.65)));
-          if (yy < 16.2) and (yy >= 14.62) then red:=Lerp(sandpeak, grasspeak, clip(0, 1, (yy - 15) / 1.58 + 0.5 * (-0.5 + Frac(perlin.complexnoise(1, xx + 2000, zz, 4, 1, 0.5) * 300))));
-          if yy < 14.62 then red:=sandpeak; //16.2 14.62
-          if (yy < 11.5) and (yy >= 10) then red:=Lerp(waterend, sandpeak, (yy - 10) / 1.5); //waterend = vizes homok peak
-          if yy < 10 then red:=Lerp(waterstart, waterend, (yy - 5) / 5); //y=10-nél 1 legyen
-          if yy < 5 then red:=waterstart;
+
+          
+          y_waterend := waterbaselevel-0.15;
+          y_waterstart := y_waterend/2;
+
+          if (yy < grasslevel+0.45) and (yy >= grasslevel-1.13) then red:=Lerp(sandpeak, grasspeak, clip(0, 1, (yy - (grasslevel-0.75)) / 1.58 + 0.5 * (-0.5 + Frac(perlin.complexnoise(1, xx + 2000, zz, 4, 1, 0.5) * 300))));
+          if yy < grasslevel-1.13 then red:=sandpeak; //16.2 14.62
+          if (yy < wetsandlevel+0.75) and (yy >= y_waterend) then red:=Lerp(waterend, sandpeak, (yy - y_waterend) / 1.5); //waterend = vizes homok peak
+          if yy < y_waterend then red:=Lerp(waterstart, waterend, (yy - y_waterstart) / y_waterstart); //y=10-nél 1 legyen
+          if yy < y_waterstart then red:=waterstart;
+
+          for m:=0 to length(bubbles) - 1 do //TODO CMAP
+            with bubbles[m] do
+            begin
+              if grass and (tavpointpointsq(D3DXVector3(posx, posy, posz), D3DXVector3(xx, yy, zz)) < rad * rad) then
+                red:=grasspeak;
+          end;
 
 
           //fények
@@ -2937,6 +2951,7 @@ var
   mati:TMaterial;
   tmpbol:boolean;
   tmpint:integer;
+  special:string;
 label
   visszobj, visszfegyv;
 begin
@@ -3037,6 +3052,15 @@ begin
       posz:=stuffjson.GetFloat(['bubbles', i, 'z']);
       rad:=stuffjson.GetFloat(['bubbles', i, 'radius']);
       if (rad <= 3) then rad:=3;
+
+      for j:=0 to stuffjson.GetNum(['bubbles', i, 'special']) do
+      begin
+        special:=stuffjson.GetString(['bubbles', i, 'special', j]);
+        if special = 'nofog' then
+          nofog:=true;
+        if special = 'grass' then
+          grass:=true;
+      end;
     end;
 
   x:=0;
@@ -6458,7 +6482,7 @@ begin
   //v2:=v1;
   tmp:=v1.y;
   v1.y:=max(advwove(v1.x, v1.z), v1.y);
-  if v1.y < 10 then v1.y:=10;
+  if v1.y < waterlevel then v1.y:=waterlevel;
   for k:=0 to high(ojjektumnevek) do
   begin
     for j:=0 to ojjektumarr[k].hvszam - 1 do
@@ -9650,8 +9674,9 @@ end;
 
 procedure rendersky;
 var
-  i:integer;
+  i, j:integer;
   tmplw:cardinal;
+  bubi:boolean;
 begin
 
   g_pd3dDevice.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -9754,7 +9779,13 @@ begin
   fogstart:=0;
   fogend:=lerp(radius_rainy, radius_sunny, fogc);
 
-  if (vEyePt.y <= waterlevel) then fogend:=90;
+
+  bubi:=false;
+  for j:=0 to length(bubbles) - 1 do
+    with bubbles[j] do
+      if nofog and (tavpointpointsq(d3dxvector3(cpx^, cpy^, cpz^), d3dxvector3(posx, posy, posz)) < rad * rad) then
+        bubi:=true;
+  if (vEyePt.y <= waterlevel) and not bubi then fogend:=90;
 
   if mapmode > 0 then
   begin
@@ -9884,7 +9915,7 @@ begin
       FEGYV_M4A1, FEGYV_M82A1, FEGYV_MP5A3, FEGYV_BM3, FEGYV_BM3_2, FEGYV_BM3_3, FEGYV_GUNSUPP:
         begin
           Particlesystem_add(Bulletcreate(aloves.pos, aloves.v2, 3, 20, 0.01, $00A0A050, 1, false));
-          tmp:=sikmetsz(aloves.pos, aloves.v2, 10);
+          tmp:=sikmetsz(aloves.pos, aloves.v2, waterlevel);
           if tmp.y <> 0 then
           begin
             for j:=0 to 6 * opt_particle do
