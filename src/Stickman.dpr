@@ -315,6 +315,7 @@ var
   canbeadmin:boolean;
   invulntim:integer;
   nemlohet:boolean;
+  onSacredLand:boolean;
 
   mapbol:boolean;
   mapmode:single;
@@ -5144,7 +5145,8 @@ begin
           if nemlohet then
           begin
             kiszall_cooldown:= -1;
-            showHudInfo(lang[64], 200, $FF0000);
+            if onSacredLand then
+              showHudInfo(lang[64], 200, $FF0000);
             goto atugor;
           end
           else
@@ -8502,14 +8504,22 @@ end;
 
     pantheoneffect;
 
+    onSacredLand:=false;
     nemlohet:=false;
 
     if (sqr(dnsvec.x - cpx^) + sqr(dnsvec.z - cpz^)) < sqr(dnsrad) then
+    begin
+      onSacredLand:=true;
       nemlohet:=true;
+    end;
 
     if (cpx^ > portalpos.x - 13) and (cpx^ < portalpos.x + 9) and
       (cpz^ > portalpos.z - 9) and (cpz^ < portalpos.z + 8) and
-      (cpy^ > portalpos.y - 1) and (cpy^ < portalpos.y + 4) then nemlohet:=true;
+      (cpy^ > portalpos.y - 1) and (cpy^ < portalpos.y + 4) then
+    begin
+      nemlohet:=true;
+      onSacredLand:=true;
+    end;
 
     if multisc <> nil then
       if multisc.disablekill then nemlohet:=true;
