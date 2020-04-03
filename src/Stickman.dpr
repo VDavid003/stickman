@@ -3779,7 +3779,7 @@ szogx:=szogx+0.2*eltim;{}
   end;
 
 
-  if ((mstat and MSTAT_MASK) <> 0) then
+  if ((mstat and MSTAT_MASK) <> 0) and ((mstat and MSTAT_MASK) < 6) then
     if ((mstat and MSTAT_MASK) = MSTAT_FUT) then
       acpy:=acpy + sin(animstat * 4 * D3DX_PI) / 40
     else
@@ -7902,7 +7902,7 @@ begin
     laststate:= 'Doing Real Physics 2';
     //Egyéb plr cucc
 
-    if (cpy^ < waterlevel) and ((mstat and MSTAT_MASK) > 0) then
+    if (cpy^ < waterlevel) and ((mstat and MSTAT_MASK) > 0) and ((mstat and MSTAT_MASK) < 6) then
       vizben:=vizben + 0.01
     else
       vizben:=vizben - 0.01;
@@ -9122,7 +9122,7 @@ begin
   if gugg then hol.y:=hol.y - 0.5;
   PlaceListener(hol, szogx, szogy);
 
-  if ((mstat and MSTAT_MASK) > 0) and (halal = 0) then
+  if ((mstat and MSTAT_MASK) > 0) and ((mstat and MSTAT_MASK) < 6) and (halal = 0) then
   begin
 
     sndnum:=1;
